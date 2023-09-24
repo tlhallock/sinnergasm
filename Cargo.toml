@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "controller",
+  "common",
+  "server",
+  "replicator",
+]

@@ -1,0 +1,14 @@
+[package]
+name = "controller"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "control"
+path = "src/main.rs"
+
+[dependencies]
+sinnergism_common = { path = "../common" }
+
+rdev = "0.5.3"
+druid = "0.8.3"
