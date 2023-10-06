@@ -1,7 +1,6 @@
 use crate::common::DeviceId;
 use crate::common::WorkspaceId;
 
-
 #[derive(Clone, Debug)]
 pub(crate) enum WorkspaceSubscriptionEvent {
   SetTarget(WorkspaceId, DeviceId),

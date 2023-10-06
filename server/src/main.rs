@@ -1,14 +1,14 @@
 // pub mod workspace;
 // pub mod actor;
+pub mod actors;
 pub mod common;
 pub mod events;
 pub mod workspace_server;
-pub mod actors;
 
-use crate::actors::workspace::WorkspaceActor;
-use crate::actors::workspace::SubscriptionEvent;
 use crate::actors::simulate::SimulationActor;
 use crate::actors::simulate::SimulationEvent;
+use crate::actors::workspace::SubscriptionEvent;
+use crate::actors::workspace::WorkspaceActor;
 
 use tonic::transport::Server;
 use tonic::{metadata::MetadataValue, Request, Status};
@@ -23,7 +23,8 @@ use crate::workspace_server::WorkspaceServer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let (workspace_send, mut workspace_recv) = tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
+  let (workspace_send, mut workspace_recv) =
+    tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
   let workspace_task = tokio::task::spawn(async move {
     let mut workspace_actor = WorkspaceActor::default();
     while let Some(event) = workspace_recv.recv().await {
@@ -34,7 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   });
 
-  let (sim_send, mut sim_recv) = tokio::sync::mpsc::unbounded_channel::<SimulationEvent>();
+  let (sim_send, mut sim_recv) =
+    tokio::sync::mpsc::unbounded_channel::<SimulationEvent>();
   let replication_task = tokio::task::spawn(async move {
     let mut simulation_actor = SimulationActor::default();
     while let Some(event) = sim_recv.recv().await {
@@ -46,10 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   });
 
   let addr = "[::1]:50051".parse()?;
-  let server = WorkspaceServer::new(
-    workspace_send.clone(),
-    sim_send.clone(),
-  );
+  let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone());
 
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
 

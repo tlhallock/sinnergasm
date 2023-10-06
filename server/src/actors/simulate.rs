@@ -3,9 +3,12 @@ use std::collections::BTreeMap;
 use crate::common as ids;
 use sinnergasm::protos as msg;
 
-
 pub(crate) enum SimulationEvent {
-  AddSimulator(ids::WorkspaceName, ids::DeviceName, tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>),
+  AddSimulator(
+    ids::WorkspaceName,
+    ids::DeviceName,
+    tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
+  ),
   RemoveSimulator(ids::WorkspaceName, ids::DeviceName),
   TargetEvent(ids::WorkspaceName, ids::DeviceName),
   SimulationEvent(ids::WorkspaceName, msg::SimulationEvent),
@@ -13,36 +16,34 @@ pub(crate) enum SimulationEvent {
   ApplicationClosing,
 }
 
-
 #[derive(Debug, Default)]
 struct DeviceMap {
-  target: Option<(String, tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>)>,
-  devices: BTreeMap<ids::DeviceName, tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>>
+  target: Option<(
+    String,
+    tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
+  )>,
+  devices: BTreeMap<
+    ids::DeviceName,
+    tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
+  >,
 }
-
 
 #[derive(Debug, Default)]
 pub(crate) struct SimulationActor {
   listeners: BTreeMap<ids::WorkspaceName, DeviceMap>,
 }
 
-impl SimulationActor
-{
-  pub(crate) fn receive(
-    &mut self,
-    event: SimulationEvent,
-  ) {
+impl SimulationActor {
+  pub(crate) fn receive(&mut self, event: SimulationEvent) {
     match event {
-      SimulationEvent::AddSimulator(
-        workspace_name, device_name, sender
-      ) => {
+      SimulationEvent::AddSimulator(workspace_name, device_name, sender) => {
         self
           .listeners
           .entry(workspace_name)
           .or_insert_with(DeviceMap::default)
           .devices
           .insert(device_name, sender);
-      },
+      }
       SimulationEvent::RemoveSimulator(workspace_name, device_name) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some((target, _)) = device_map.target.as_ref() {
@@ -55,14 +56,14 @@ impl SimulationActor
             self.listeners.remove(&workspace_name);
           }
         }
-      },
+      }
       SimulationEvent::TargetEvent(workspace_name, device_name) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some(sender) = device_map.devices.get(&device_name) {
             device_map.target = Some((device_name, sender.clone()));
           }
         }
-      },
+      }
       SimulationEvent::SimulationEvent(workspace_name, event) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some((_, sender)) = device_map.target.as_ref() {
@@ -71,13 +72,13 @@ impl SimulationActor
             }
           }
         }
-      },
+      }
       SimulationEvent::WorkspaceClosing(workspace_name) => {
         self.listeners.remove(&workspace_name);
-      },
+      }
       SimulationEvent::ApplicationClosing => {
         self.listeners.clear();
-      },
+      }
     }
   }
 }

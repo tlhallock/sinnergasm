@@ -1,4 +1,3 @@
-
 pub type WorkspaceName = String;
 pub type DeviceName = String;
 

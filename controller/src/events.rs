@@ -1,6 +1,5 @@
 use rdev;
 
-
 #[derive(Debug)]
 pub enum ControlEvent {
   StartListening,

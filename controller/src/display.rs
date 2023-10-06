@@ -33,13 +33,11 @@ fn ui_builder(sender: Sender<ControlEvent>) -> impl Widget<DisplayState> {
   })
   .on_click(move |_ctx, state: &mut DisplayState, _env| {
     state.listening = !state.listening;
-    if let Err(err) = sender.send(
-      if state.listening {
-        ControlEvent::StartListening
-      } else {
-        ControlEvent::StopListening
-      }
-    ) {
+    if let Err(err) = sender.send(if state.listening {
+      ControlEvent::StartListening
+    } else {
+      ControlEvent::StopListening
+    }) {
       println!("Error sending start/stop listening: {}", err);
     }
   })

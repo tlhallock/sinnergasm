@@ -21,7 +21,6 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
 
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let (app_snd, app_rcv) = mpsc::channel();
@@ -65,9 +64,10 @@ async fn main() -> anyhow::Result<()> {
   let display_task =
     tokio::task::spawn(async move { launch_display(display_sender) });
 
-  let forward_task = tokio::task::spawn(async move { 
-    forward_events(app_rcv, control_snd).await
-  });
+  let forward_task =
+    tokio::task::spawn(
+      async move { forward_events(app_rcv, control_snd).await },
+    );
 
   let (r1, r2, r3) = tokio::join!(display_task, forward_task, network_task);
   r1??;
