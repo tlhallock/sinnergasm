@@ -2,10 +2,11 @@ use anyhow;
 use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
 use sinnergasm::SECRET_TOKEN;
-use tokio_stream;
+use tokio_stream::{self, StreamExt};
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::Request;
+use rdev::simulate;
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -14,6 +15,17 @@ use tonic::Request;
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
+
+async fn simulate_receiver(
+  mut receiver: tokio::sync::mpsc::UnboundedReceiver::<msg::SimulationEvent>,
+) {
+  while let Some(event) = receiver.recv().await {
+    println!("Event: {:?}", event);
+  }
+}
+
+
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let base_url = "http://localhost:50051";
@@ -21,6 +33,7 @@ async fn main() -> anyhow::Result<()> {
     .concurrency_limit(256)
     .connect()
     .await?;
+
   let token: MetadataValue<_> = format!("Bearer {SECRET_TOKEN}",).parse()?;
   let mut client = VirtualWorkspacesClient::with_interceptor(
     channel,
@@ -31,7 +44,6 @@ async fn main() -> anyhow::Result<()> {
   );
 
   {
-    let secret: &str = "secret";
     let request = msg::ListRequest {};
     let response = client.list_workspaces(request).await;
     if let Ok(response) = response {
@@ -40,34 +52,33 @@ async fn main() -> anyhow::Result<()> {
   }
 
   let (sender, receiver) =
-    tokio::sync::mpsc::unbounded_channel::<msg::ControlRequest>();
+    tokio::sync::mpsc::unbounded_channel::<msg::SimulationEvent>();
 
-  let future = tokio::task::spawn(async move {
-    let receiver_stream =
-      tokio_stream::wrappers::UnboundedReceiverStream::new(receiver);
-    let response = client.control_workspace(receiver_stream).await?;
-    println!("Response: {:?}", response.into_inner());
+  let relay_task = tokio::task::spawn(async move {
+    let request = msg::SimulateRequest {
+      workspace: "The Workspace".into(),
+      device: "".into(),
+    };
+    let response = client.simulate_workspace(request).await?;
+    let mut stream = response.into_inner();
+    while let Ok(event) = stream.message().await {
+      match event {
+        Some(event) => sender.send(event)?,
+        None => break,
+      }
+    }
     anyhow::Ok(())
   });
 
-  {
-    if let Err(err) = sender.send(msg::ControlRequest {
-      input_event: Some(msg::UserInputEvent {
-        r#type: Some(msg::user_input_event::Type::Wheel(msg::WheelEvent {
-          dx: 10, // or whatever value you need
-          dy: 20, // or whatever value you need
-        })),
-      }),
-    }) {
-      eprintln!("Error sending message: {}", err);
-    } else {
-      println!("Message sent");
-    }
-  }
+  let simulate_task = tokio::task::spawn(async move {
+    simulate_receiver(receiver).await;
+    anyhow::Ok(())
+  });
 
-  drop(sender);
+  simulate_task.await??;
 
-  if let Err(err) = future.await {
+
+  if let Err(err) = relay_task.await {
     eprintln!("Error: {}", err);
   }
 

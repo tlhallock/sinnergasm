@@ -5,7 +5,7 @@ edition = "2021"
 
 [[bin]]
 name = "control"
-path = "src/main.rs"
+path = "src/control.rs"
 
 [dependencies]
 sinnergism_common = { path = "../common" }

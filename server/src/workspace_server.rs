@@ -218,7 +218,6 @@ impl VirtualWorkspaces for WorkspaceServer {
     println!("Got control workspace request");
     let mut stream = request.into_inner();
     while let Some(req) = stream.next().await {
-      println!("Got request: {:?}", req);
       if let Some(input_event) = req
         .map_err(|e| {
           println!("Error: {:?}", e);
@@ -231,9 +230,7 @@ impl VirtualWorkspaces for WorkspaceServer {
           .simulation_sender
           .send(SimulationEvent::SimulationEvent(
             self.the_workspace.name.clone(),
-            msg::SimulationEvent {
-              input_event: Some(input_event.clone()),
-            },
+            msg::SimulationEvent { input_event: Some(input_event.clone()), },
           ))
           .map_err(|e| tonic::Status::aborted(e.to_string()))?;
       }
@@ -254,6 +251,8 @@ impl VirtualWorkspaces for WorkspaceServer {
     let device_name = request.device;
     let (sender, receiver) = mpsc::unbounded_channel::<msg::SimulationEvent>();
 
+    println!("Got simulate workspace request");
+
     if let Err(err) = self.simulation_sender.send(
       SimulationEvent::AddSimulator(workspace_name, device_name, sender),
     ) {
@@ -262,7 +261,8 @@ impl VirtualWorkspaces for WorkspaceServer {
 
     let response_stream =
       tokio_stream::wrappers::UnboundedReceiverStream::new(receiver)
-        .map(Ok::<_, tonic::Status>);
+        .map(Ok::<_, tonic::Status>)
+        .inspect(|event| println!("Sending event 321: {:?}", event));
     Ok(tonic::Response::new(Box::pin(response_stream)))
   }
 

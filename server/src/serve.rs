@@ -40,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let replication_task = tokio::task::spawn(async move {
     let mut simulation_actor = SimulationActor::default();
     while let Some(event) = sim_recv.recv().await {
+      println!("Sending event to actor 125246");
       if matches!(event, SimulationEvent::ApplicationClosing) {
         break;
       }

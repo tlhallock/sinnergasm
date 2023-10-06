@@ -2,6 +2,7 @@ use crate::events::ControlEvent;
 use rdev;
 use sinnergasm::protos as msg;
 use std::sync::mpsc;
+use crate::prison::MouseParoleOfficer;
 
 // fn handle_rdev(event_type: rdev::EventType) {
 //   match event_type {
@@ -26,7 +27,7 @@ use std::sync::mpsc;
 //   }
 // }
 
-fn translate_event(event: rdev::EventType) -> msg::ControlRequest {
+fn translate_event(officer: &mut MouseParoleOfficer, event: rdev::EventType) -> msg::ControlRequest {
   msg::ControlRequest {
     input_event: Some(msg::UserInputEvent {
       r#type: Some(match event {
@@ -43,7 +44,9 @@ fn translate_event(event: rdev::EventType) -> msg::ControlRequest {
           msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
         }
         rdev::EventType::MouseMove { x, y } => {
-          msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent { x, y })
+          let msg = msg::MouseMoveEvent { x, y };
+          let msg = officer.patch(msg);
+          msg::user_input_event::Type::MouseMove(msg)
         }
         rdev::EventType::Wheel { delta_x, delta_y } => {
           msg::user_input_event::Type::Wheel(msg::WheelEvent {
@@ -60,27 +63,34 @@ pub async fn forward_events(
   receiver: mpsc::Receiver<ControlEvent>,
   sender: tokio::sync::mpsc::UnboundedSender<msg::ControlRequest>,
 ) -> Result<(), mpsc::RecvError> {
-  let mut listening = false;
+  let mut last_position = None;
+  let mut officer = None;
+
   loop {
     let event = receiver.recv()?;
     match event {
       ControlEvent::RDevEvent(event_type) => {
-        if !listening {
-          continue;
+        if let Some(officer) = officer.as_mut() {
+          let translated = translate_event(officer, event_type);
+          if let Err(err) = sender.send(translated) {
+            eprintln!("Error sending message: {}", err);
+          }
+          tokio::task::yield_now().await;
+        } else if let rdev::EventType::MouseMove { x, y } = event_type {
+          last_position = Some((x, y));
         }
-        let translated = translate_event(event_type);
-        if let Err(err) = sender.send(translated) {
-          eprintln!("Error sending message: {}", err);
-        }
-        tokio::task::yield_now().await;
       }
       ControlEvent::StartListening => {
-        println!("Started Listening");
-        listening = true;
+        if let Some((x, y)) = last_position {
+          officer = Some(MouseParoleOfficer::new((x, y)));
+          println!("Starting to listen");
+        } else {
+          println!("No mouse position found, ignoring listen event");
+        }
       }
       ControlEvent::StopListening => {
         println!("Stopped Listening");
-        listening = false;
+        officer = None;
       }
       ControlEvent::CloseApplication => {
         return Ok(());

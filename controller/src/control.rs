@@ -4,6 +4,7 @@ pub mod display;
 pub mod events;
 pub mod handler;
 pub mod listener;
+pub mod prison;
 // pub mod display2;
 
 use std::sync::mpsc;
