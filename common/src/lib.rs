@@ -13,3 +13,5 @@ pub enum UserInputEvent {
 }
 
 pub fn my_func() {}
+
+pub const SECRET_TOKEN: &str = "secret";

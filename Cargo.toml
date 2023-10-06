@@ -3,5 +3,5 @@ members = [
   "controller",
   "common",
   "server",
-  "replicator",
+  "simulator",
 ]

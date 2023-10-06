@@ -1,17 +1,36 @@
 use crate::events::ControlEvent;
-use rdev::listen;
+use rdev;
 use std::sync::mpsc::Sender;
 
-pub fn stream_events(sender: Sender<ControlEvent>) {
-  let result = listen(move |event| {
+#[derive(Debug)]
+pub(crate) struct RDevError {
+  inner: rdev::ListenError,
+}
+
+impl From<rdev::ListenError> for RDevError {
+  fn from(error: rdev::ListenError) -> Self {
+    RDevError { inner: error }
+  }
+}
+
+impl std::fmt::Display for RDevError {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(f, "CustomError: {:?}", self.inner)
+  }
+}
+
+impl std::error::Error for RDevError {}
+
+pub(crate) fn listen_to_keyboard_and_mouse(
+  sender: Sender<ControlEvent>,
+) -> Result<(), RDevError> {
+  rdev::listen(move |event| {
     let result = sender.send(ControlEvent::RDevEvent(event.event_type));
     if let Err(e) = result {
-      println!("Error: {:?}", e);
+      eprintln!("Error: {:?}", e);
     }
-  });
-  if let Err(e) = result {
-    println!("Error: {:?}", e);
-  }
+  })?;
+  Ok(())
 }
 
 // pub fn callback(event: Event) {

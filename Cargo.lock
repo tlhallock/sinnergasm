@@ -415,9 +415,13 @@ dependencies = [
 name = "controller"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "druid",
  "rdev",
  "sinnergism_common",
+ "tokio",
+ "tokio-stream",
+ "tonic",
 ]
 
 [[package]]
@@ -1831,14 +1835,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dbb5fb1acd8a1a18b3dd5be62d25485eb770e05afb408a9627d14d451bae12da"
 
 [[package]]
-name = "replicator"
-version = "0.1.0"
-dependencies = [
- "enigo",
- "sinnergism_common",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1954,6 +1950,7 @@ dependencies = [
  "futures-core",
  "sinnergism_common",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tonic-build",
 ]
@@ -1965,6 +1962,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "900fba806f70c630b0a382d0d825e17a0f19fcd059a2ade1ff237bcddf446b31"
 dependencies = [
  "lazy_static",
+]
+
+[[package]]
+name = "simulator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "enigo",
+ "sinnergism_common",
+ "tokio",
+ "tokio-stream",
+ "tonic",
 ]
 
 [[package]]

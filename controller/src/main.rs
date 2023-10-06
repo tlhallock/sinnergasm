@@ -4,55 +4,74 @@ pub mod display;
 pub mod events;
 pub mod handler;
 pub mod listener;
+// pub mod display2;
 
-// use crate::simple_ui2::run_ui;
-// use crate::app_state::ControllerState;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::Receiver;
-use std::sync::mpsc::Sender;
-use std::thread;
+use std::sync::mpsc;
 
 use crate::display::launch_display;
-use crate::handler::handle_events;
-use crate::listener::stream_events;
+use crate::handler::forward_events;
+use crate::listener::listen_to_keyboard_and_mouse;
+use anyhow;
+use sinnergasm::protos as msg;
+use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
+use sinnergasm::SECRET_TOKEN;
+use tokio_stream;
+use tokio_stream::wrappers::UnboundedReceiverStream;
+use tonic::metadata::MetadataValue;
+use tonic::transport::Channel;
+use tonic::{Request, Status};
 
-use crate::events::ControlEvent;
 
-use rdev::{listen, Event, EventType};
-// use crate::app_state::ControllerState;
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+  let (app_snd, app_rcv) = mpsc::channel();
+  let (control_snd, control_rcv) =
+    tokio::sync::mpsc::unbounded_channel::<msg::ControlRequest>();
+  // let (control_snd, mut control_rcv) =
+  //   tokio::sync::mpsc::channel::<msg::ControlRequest>(10);
 
-use druid::widget::{Button, Flex, Label};
-use druid::{
-  AppLauncher, LocalizedString, PlatformError, Widget, WidgetExt, WindowDesc,
-};
+  let base_url = "http://localhost:50051";
+  let channel = Channel::from_static(base_url)
+    .concurrency_limit(256)
+    .connect()
+    .await?;
 
-fn main() {
-  let (mut sender, recceiver) = channel();
+  let token: MetadataValue<_> = format!("Bearer {SECRET_TOKEN}",).parse()?;
+  let mut client = VirtualWorkspacesClient::with_interceptor(
+    channel,
+    move |mut req: Request<()>| {
+      req.metadata_mut().insert("authorization", token.clone());
+      Ok::<_, Status>(req)
+    },
+  );
 
-  thread::spawn(move || {
-    handle_events(recceiver);
+  let network_task = tokio::task::spawn(async move {
+    // println!("Starting network task");
+    // while let Some(w) = control_rcv.recv().await {
+    //   println!("Got workspace: {:?}", w);
+    // }
+    // println!("Dropping the receiver");
+    // Ok(())
+    client
+      .control_workspace(UnboundedReceiverStream::new(control_rcv))
+      .await
   });
-  {
-    let sender = sender.clone();
-    thread::spawn(move || {
-      stream_events(sender);
-    });
-  }
-  {
-    let sender = sender.clone();
-    thread::spawn(move || {
-      launch_display(sender);
-    });
-  }
 
-  // receiver.recv().unwrap();
-  // receiver.recv().unwrap();
+  let key_sender = app_snd.clone();
+  let _ =
+    tokio::task::spawn(async move { listen_to_keyboard_and_mouse(key_sender) });
 
-  // launch_ui(transmitter);
-  // launch_listener(receiver);
+  let display_sender = app_snd.clone();
+  let display_task =
+    tokio::task::spawn(async move { launch_display(display_sender) });
 
-  // launch_ui(state);
-  // launch_listener();
+  let forward_task = tokio::task::spawn(async move { 
+    forward_events(app_rcv, control_snd).await
+  });
 
-  // _ = run_ui();
+  let (r1, r2, r3) = tokio::join!(display_task, forward_task, network_task);
+  r1??;
+  r2??;
+  r3??;
+  anyhow::Ok(())
 }

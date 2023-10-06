@@ -1,8 +1,10 @@
-use rdev::EventType;
+use rdev;
 
+
+#[derive(Debug)]
 pub enum ControlEvent {
   StartListening,
   StopListening,
-  RDevEvent(EventType),
+  RDevEvent(rdev::EventType),
   CloseApplication,
 }

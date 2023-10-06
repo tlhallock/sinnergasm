@@ -6,26 +6,26 @@ service VirtualWorkspaces {
   rpc CreateWorkspace(CreateRequest) returns (CreatedResponse);
   rpc ListWorkspaces(ListRequest) returns (WorkspaceList);
   rpc GetWorkspace(GetRequest) returns (Workspace);
-  rpc ConfigureWorkspace(ConfigurationRequest) returns (ConfiguredResponse);
   rpc DeleteWorkspace(DeleteRequest) returns (DeleteResponse);
 
-  rpc JoinWorkspace(JoinRequest) returns (JoinResponse);
-  rpc LeaveWorkspace(LeaveRequest) returns (LeaveResponse);
+  rpc ConfigureWorkspace(ConfigurationRequest) returns (ConfiguredResponse);
+
   rpc TargetDevice(TargetRequest) returns (TargetResponse);
 
-  rpc ControlWorkspace(stream ControlRequest) returns (StreamControlled);
+  rpc ControlWorkspace(stream ControlRequest) returns (ControlResponse);
 
-  rpc TransitionSubscription(TransitionRequest) returns (stream TransitionEvent);
-  rpc ReplicationSubscription(ReplicationRequest) returns (stream ReplicationEvent);
+  rpc SimulateWorkspace(SimulateRequest) returns (stream SimulationEvent);
+  rpc CancelSimulation(CancelSimulationRequest) returns (CancelSimulationResponse);
+
+  rpc SubscribeToWorkspace(WorkspaceSubscriptionRequest) returns (stream WorkspaceEvent);
+  rpc CancelSubscription(CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
 }
-
 
 //////////////////////
 // Create
 //////////////////////
 message CreateRequest {
-  string name = 1;
-  string secret = 2;
+  string workspace = 1;
 }
 
 message CreatedResponse {
@@ -36,7 +36,6 @@ message CreatedResponse {
 // List
 //////////////////////
 message ListRequest {
-  string secret = 1;
 }
 
 message WorkspaceList {
@@ -44,7 +43,7 @@ message WorkspaceList {
 }
 
 message WorkspaceSummary {
-  string name = 1;
+  string workspace = 1;
   uint32 number_of_monitors = 2;
   uint32 devices = 3;
 }
@@ -53,7 +52,6 @@ message WorkspaceSummary {
 // Get
 //////////////////////
 message GetRequest {
-  string secret = 1;
 }
 
 message Workspace {
@@ -65,16 +63,17 @@ message Workspace {
 }
 
 message Monitor {
-  uint32 x = 1;
-  uint32 y = 2;
-  uint32 w = 3;
-  uint32 h = 4;
-  string device = 5;
+  string name = 1;
+  uint32 x = 2;
+  uint32 y = 3;
+  uint32 w = 4;
+  uint32 h = 5;
+  string device = 6;
 }
 
 message Device {
   string name = 1;
-  string ip = 2;
+  bool controller = 2;
 }
 
 //////////////////////
@@ -83,7 +82,6 @@ message Device {
 
 message DeleteRequest {
   string workspace = 1;
-  string secret = 2;
 }
 
 message DeleteResponse {
@@ -109,8 +107,8 @@ message ConfiguredResponse {
 
 message TargetRequest {
   string workspace = 1;
-  string secret = 2;
   string device = 3;
+  string clipboard = 4;
 }
 
 message TargetResponse {
@@ -122,8 +120,7 @@ message TargetResponse {
 //////////////////////
 
 message JoinRequest {
-  string name = 1;
-  string secret = 2;
+  string workspace = 1;
   string device = 3;
   repeated string monitors = 4;
 }
@@ -137,8 +134,7 @@ message JoinResponse {
 //////////////////////
 
 message LeaveRequest {
-  string name = 1;
-  string secret = 2;
+  string workspace = 1;
   string device = 3;
 }
 
@@ -155,19 +151,7 @@ message ControlRequest {
   UserInputEvent input_event = 1;
 }
 
-message StreamControlled {
-
-}
-
-message ControllerEvent {
-  oneof event_type {
-    ConfigurationUpdate configuration_update = 1;
-    Terminate terminate = 2;
-    Targetted targetted = 3;
-  }
-}
-
-message Terminate {
+message ControlResponse {
 
 }
 
@@ -175,37 +159,56 @@ message ConfigurationUpdate {
   Workspace workspace = 1;
 }
 
-message Targetted {
-  string clipboard = 1;
-}
 
 //////////////////////
 // Subscription
 //////////////////////
 
-message TransitionRequest {
+message WorkspaceSubscriptionRequest {
   string workspace = 1;
-  string secret = 2;
+  string device = 2;
 }
 
-message TransitionEvent {
+message WorkspaceEvent {
   oneof event_type {
     ConfigurationUpdate configuration_update = 1;
-    Terminate terminate = 2;
-    Targetted targetted = 3;
+    TargetUpdate target_update = 2;
+    DeviceConnected device_connected = 3;
+    DeviceDisconnected device_disconnected = 4;
   }
+}
+
+message TargetUpdate {
+  string device = 1;
+}
+
+enum DeviceRole {
+  UNKNOWN = 0;
+  CONTROLLER = 1;
+  SIMULATOR = 2;
+  SUBSCRIBER = 3;
+}
+
+message DeviceConnected {
+  string device = 1;
+  // Wrap this under the configuration udpate?
+  DeviceRole role = 2;
+}
+
+message DeviceDisconnected {
+  string device = 1;
 }
 
 //////////////////////
 // Listen
 //////////////////////
 
-message ReplicationRequest {
+message SimulateRequest {
   string workspace = 1;
-  string secret = 2;
+  string device = 2;
 }
 
-message ReplicationEvent {
+message SimulationEvent {
   UserInputEvent input_event = 1;
 }
 
@@ -219,8 +222,8 @@ message UserInputEvent {
 }
 
 message MouseMoveEvent {
-  uint32 x = 1;
-  uint32 y = 2;
+  double x = 1;
+  double y = 2;
 }
 
 message MouseButtonEvent {
@@ -236,3 +239,19 @@ message WheelEvent {
   sint32 dx = 1;
   sint32 dy = 2;
 }
+
+
+// Subscriptions
+message CancelSimulationRequest {
+  string workspace = 1;
+  string device = 2;
+}
+
+message CancelSimulationResponse {}
+
+message CancelSubscriptionRequest {
+  string workspace = 1;
+  string device = 2;
+}
+
+message CancelSubscriptionResponse {}
