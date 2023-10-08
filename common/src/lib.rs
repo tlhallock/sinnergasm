@@ -4,6 +4,9 @@
 
 pub mod options;
 
+#[cfg(feature = "use-rdev")]
+pub mod errors;
+
 pub mod protos {
   tonic::include_proto!("sinnergasm"); // The string specified here must match the proto package name
 }

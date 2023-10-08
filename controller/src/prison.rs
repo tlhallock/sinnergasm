@@ -5,6 +5,8 @@ use rdev;
 
 use crate::events::ControlEvent;
 
+// TODO: there is a grab feature, maybe the prison is not needed!
+
 #[derive(Default)]
 pub(crate) struct MouseTracker {
   last_position: Option<(f64, f64)>,

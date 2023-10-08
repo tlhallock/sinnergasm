@@ -7,10 +7,14 @@ edition = "2021"
 name = "sinnergasm"
 path = "src/lib.rs"
 
+[features]
+use-rdev = ["rdev"]
+
 [dependencies]
 cargo-limit = "0.0.10"
 prost = "0.11.9"
 tonic = "0.9.2"
+rdev = { version = "0.5.3", optional = true }
 
 [build-dependencies]
 # prost-build = "0.11.9"

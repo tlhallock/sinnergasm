@@ -10,6 +10,7 @@ use tokio_stream;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
+use sinnergasm::errors::RDevError;
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -18,12 +19,74 @@ use tonic::{Request, Status};
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
-async fn simulate_receiver(
-  mut receiver: tokio::sync::mpsc::UnboundedReceiver<msg::SimulationEvent>,
-) {
-  while let Some(event) = receiver.recv().await {
-    println!("Event: {:?}", event);
+
+enum SimulatorEvent {
+  LocalMouseChanged(f64, f64),
+  SimulateEvent(msg::SimulationEvent),
+}
+
+fn simulate_input_event((mouse_x, mouse_y): (f64, f64), event: msg::user_input_event::Type) -> Result<(), rdev::SimulateError> {
+  match event {
+    msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent { delta_x, delta_y }) => {
+      simulate(&rdev::EventType::MouseMove {
+        x: mouse_x + delta_x,
+        y: mouse_y + delta_y,
+      })
+    }
+    msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}) => {
+      Ok(())
+    }
+    msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {}) => {
+      Ok(())
+    }
+    msg::user_input_event::Type::Wheel(msg::WheelEvent { dx, dy}) => {
+      simulate(&rdev::EventType::Wheel {
+        delta_x: dx.into(), delta_y: dy.into()
+      })
+    }
   }
+}
+
+
+async fn simulate_receiver(
+  mut receiver: tokio::sync::mpsc::UnboundedReceiver<SimulatorEvent>,
+) -> Result<(), rdev::SimulateError> {
+  let mut current_mouse_position = None;
+  while let Some(event) = receiver.recv().await {
+    match event {
+      SimulatorEvent::LocalMouseChanged(x, y) => {
+        current_mouse_position = Some((x, y));
+      },
+      SimulatorEvent::SimulateEvent(event) => {
+        if let Some((mouse_x, mouse_y)) = current_mouse_position {
+        if let Some(event) = event.input_event {
+          if let Some(event) = event.r#type {
+            // Fail on first error?
+            simulate_input_event((mouse_x, mouse_y), event)?
+          }
+        }
+      } else {
+        println!("No mouse event yet, we do not know the current location of the mouse.");
+      }
+      }
+    }
+  }
+  Ok(())
+}
+
+
+
+pub(crate) fn listen_to_mouse(
+  sender: tokio::sync::mpsc::UnboundedSender<SimulatorEvent>,
+) -> Result<(), RDevError> {
+  rdev::listen(move |event| {
+    if let rdev::EventType::MouseMove { x, y } = event.event_type {
+      if let Err(e) = sender.send(SimulatorEvent::LocalMouseChanged(x, y)) {
+        eprintln!("Error: {:?}", e);
+      }
+    }
+  })?;
+  Ok(())
 }
 
 #[tokio::main]
@@ -32,8 +95,7 @@ async fn main() -> anyhow::Result<()> {
   let channel = Channel::from_shared(options.base_url.clone())?
     .concurrency_limit(options.concurrency_limit);
   let connect_future = channel.connect();
-  let channel =
-    timeout(Duration::from_secs(options.timeout), connect_future).await??;
+  let channel = timeout(Duration::from_secs(options.timeout), connect_future).await??;
   let token: MetadataValue<_> = format!("Bearer {}", options.token).parse()?;
   let mut client = VirtualWorkspacesClient::with_interceptor(
     channel,
@@ -51,8 +113,10 @@ async fn main() -> anyhow::Result<()> {
     }
   }
 
-  let (sender, receiver) =
-    tokio::sync::mpsc::unbounded_channel::<msg::SimulationEvent>();
+  let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorEvent>();
+
+  let key_sender = sender.clone();
+  let _ = tokio::task::spawn(async move { listen_to_mouse(key_sender) });
 
   let relay_task = tokio::task::spawn(async move {
     let request = msg::SimulateRequest {
@@ -63,7 +127,7 @@ async fn main() -> anyhow::Result<()> {
     let mut stream = response.into_inner();
     while let Ok(event) = stream.message().await {
       match event {
-        Some(event) => sender.send(event)?,
+        Some(event) => sender.send(SimulatorEvent::SimulateEvent(event))?,
         None => break,
       }
     }
@@ -71,7 +135,7 @@ async fn main() -> anyhow::Result<()> {
   });
 
   let simulate_task = tokio::task::spawn(async move {
-    simulate_receiver(receiver).await;
+    simulate_receiver(receiver).await?;
     anyhow::Ok(())
   });
 

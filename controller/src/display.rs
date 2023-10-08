@@ -1,4 +1,7 @@
-use druid::widget::{Button, Flex, Label};
+use druid::widget::Button;
+use druid::widget::Flex;
+use druid::widget::Label;
+
 use druid::AppLauncher;
 use druid::Data;
 use druid::Widget;

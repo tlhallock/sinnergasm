@@ -6,7 +6,8 @@ pub mod handler;
 pub mod listener;
 pub mod options;
 pub mod prison;
-use tokio::time::{timeout, Duration};
+use tokio::time::timeout;
+use tokio::time::Duration;
 // pub mod display2;
 
 use std::sync::mpsc;
@@ -23,18 +24,6 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
-
-// struct LaunchSettings {
-//   pub host: String
-// }
-
-// impl LaunchSettings {
-//   pub fn new() -> Self {
-//     Self {
-//       host: "13.52.105.5:50051",
-//     }
-//   }
-// }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

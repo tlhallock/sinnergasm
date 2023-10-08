@@ -1,4 +1,7 @@
 
+# TODO: do I need the ecs instance to have a public IP?
+
+
 provider "aws" {
   region = "us-west-1"
 }
@@ -210,8 +213,8 @@ resource "aws_ecs_service" "this" {
 
 
 ################################################################################
-# NLB + Elastic IP
-resource "aws_eip" "this" {}
+# NLB
+# resource "aws_eip" "this" {}
 
 resource "aws_lb" "this" {
   name                       = "sinnergy-nlb"
@@ -225,7 +228,7 @@ resource "aws_lb" "this" {
 
   subnet_mapping {
     subnet_id     = aws_subnet.this.id
-    allocation_id = aws_eip.this.id
+    # allocation_id = aws_eip.this.id
   }
 }
 
@@ -273,8 +276,13 @@ resource "aws_security_group_rule" "nlb_egress" {
   source_security_group_id = aws_security_group.service_sg.id
 }
 
-output "nlb_ip" {
-  value = aws_eip.this.public_ip
+# output "nlb_ip" {
+#   value = aws_eip.this.public_ip
+# }
+
+output "sinnergy_nlb_dns_name" {
+  description = "The DNS name of the Sinnergy NLB"
+  value       = aws_lb.this.dns_name
 }
 
 
