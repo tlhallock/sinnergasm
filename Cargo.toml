@@ -1,7 +1,7 @@
 [workspace]
 members = [
-  "controller",
   "common",
+  "controller",
   "server",
   "simulator",
   # "cli",

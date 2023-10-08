@@ -222,8 +222,8 @@ message UserInputEvent {
 }
 
 message MouseMoveEvent {
-  double x = 1;
-  double y = 2;
+  double delta_x = 1;
+  double delta_y = 2;
 }
 
 message MouseButtonEvent {

@@ -1,12 +1,15 @@
+use std::time::Duration;
+
 use anyhow;
+use rdev::simulate;
+use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
-use sinnergasm::SECRET_TOKEN;
-use tokio_stream::{self, StreamExt};
+use tokio::time::timeout;
+use tokio_stream;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
-use tonic::Request;
-use rdev::simulate;
+use tonic::{Request, Status};
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -15,31 +18,28 @@ use rdev::simulate;
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
-
 async fn simulate_receiver(
-  mut receiver: tokio::sync::mpsc::UnboundedReceiver::<msg::SimulationEvent>,
+  mut receiver: tokio::sync::mpsc::UnboundedReceiver<msg::SimulationEvent>,
 ) {
   while let Some(event) = receiver.recv().await {
     println!("Event: {:?}", event);
   }
 }
 
-
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  let base_url = "http://localhost:50051";
-  let channel = Channel::from_static(base_url)
-    .concurrency_limit(256)
-    .connect()
-    .await?;
-
-  let token: MetadataValue<_> = format!("Bearer {SECRET_TOKEN}",).parse()?;
+  let options = Options::new("laptop".into());
+  let channel = Channel::from_shared(options.base_url.clone())?
+    .concurrency_limit(options.concurrency_limit);
+  let connect_future = channel.connect();
+  let channel =
+    timeout(Duration::from_secs(options.timeout), connect_future).await??;
+  let token: MetadataValue<_> = format!("Bearer {}", options.token).parse()?;
   let mut client = VirtualWorkspacesClient::with_interceptor(
     channel,
     move |mut req: Request<()>| {
       req.metadata_mut().insert("authorization", token.clone());
-      Ok(req)
+      Ok::<_, Status>(req)
     },
   );
 
@@ -76,7 +76,6 @@ async fn main() -> anyhow::Result<()> {
   });
 
   simulate_task.await??;
-
 
   if let Err(err) = relay_task.await {
     eprintln!("Error: {}", err);

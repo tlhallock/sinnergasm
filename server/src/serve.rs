@@ -13,16 +13,27 @@ use crate::actors::workspace::WorkspaceActor;
 use tonic::transport::Server;
 use tonic::{metadata::MetadataValue, Request, Status};
 
+use sinnergasm::options::read_token;
+use sinnergasm::options::PORT;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspacesServer;
-use sinnergasm::SECRET_TOKEN;
+use tonic_health::ServingStatus;
 
 use crate::workspace_server::WorkspaceServer;
+use std::fs;
+use tracing::Level;
+use tracing_subscriber::FmtSubscriber;
 
 // let cert = std::fs::read_to_string("server.pem")?;
 // let key = std::fs::read_to_string("server.key")?;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let subscriber = FmtSubscriber::builder()
+    .with_max_level(Level::INFO)
+    .finish();
+  tracing::subscriber::set_global_default(subscriber)
+    .expect("setting default subscriber failed");
+
   let (workspace_send, mut workspace_recv) =
     tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
   let workspace_task = tokio::task::spawn(async move {
@@ -40,7 +51,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let replication_task = tokio::task::spawn(async move {
     let mut simulation_actor = SimulationActor::default();
     while let Some(event) = sim_recv.recv().await {
-      println!("Sending event to actor 125246");
       if matches!(event, SimulationEvent::ApplicationClosing) {
         break;
       }
@@ -48,14 +58,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   });
 
-  let addr = "[::1]:50051".parse()?;
+  let token = read_token();
+  let check_auth = move |req: Request<()>| {
+    let metadata: MetadataValue<_> =
+      format!("Bearer {}", token).parse().unwrap();
+    match req.metadata().get("authorization") {
+      Some(t) if metadata == t => Ok(req),
+      _ => Err(Status::unauthenticated("No valid auth token")),
+    }
+  };
+
+  let (mut health_reporter, health_service) =
+    tonic_health::server::health_reporter();
+  health_reporter
+    .set_service_status(
+      "virtualworkspaces.VirtualWorkspaces",
+      ServingStatus::Serving,
+    )
+    .await;
+
+  // health_reporter
+  //   // .set_serving::<tonic::service::interceptor::InterceptedService<Self, VirtualWorkspacesServer<WorkspaceServer>>>()
+  //   .set_serving::<VirtualWorkspacesServer<WorkspaceServer>>()
+  //   .await;
+  // health_reporter.set_serving::<VirtualWorkspacesServer<WorkspaceServer>>().await;
+  let addr = format!("0.0.0.0:{}", PORT).parse()?;
   let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone());
-
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
-
   Server::builder()
     // .tls_config(ServerTlsConfig::new()
     //   .identity(Identity::from_pem(&cert, &key)))?
+    // .add_service(health_service)
     .add_service(service)
     .serve(addr)
     .await?;
@@ -70,14 +103,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   replication_task.await?;
 
   Ok(())
-}
-
-fn check_auth(req: Request<()>) -> Result<Request<()>, Status> {
-  let token: MetadataValue<_> =
-    format!("Bearer {}", SECRET_TOKEN).parse().unwrap();
-
-  match req.metadata().get("authorization") {
-    Some(t) if token == t => Ok(req),
-    _ => Err(Status::unauthenticated("No valid auth token")),
-  }
 }

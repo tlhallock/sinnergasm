@@ -3,6 +3,16 @@ provider "aws" {
   region = "us-west-1"
 }
 
+# variable "image_tag" {
+#   description = "The image tag to use"
+#   type        = string
+# }
+
+locals {
+  image_tag = trimspace(file("${path.module}/../container/version.txt"))
+}
+
+
 ################################################################################
 # VPC
 
@@ -13,16 +23,26 @@ resource "aws_vpc" "this" {
   tags = {
     Name = "sinnergy-vpc"
   }
+  
 }
 
 resource "aws_subnet" "this" {
   vpc_id     = aws_vpc.this.id
   cidr_block = "10.0.1.0/24"
-  # map_public_ip_on_launch = true
+  map_public_ip_on_launch = true
   tags = {
-    Name = "sinnergy-subnet"
+    Name = "sinnergy-public-subnet"
   }
+
 }
+
+# resource "aws_subnet" "public" {
+#   vpc_id     = aws_vpc.this.id
+#   cidr_block = "10.0.2.0/24"
+#   tags = {
+#     Name = "sinnergy-private-subnet"
+#   }
+# }
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
@@ -42,6 +62,7 @@ resource "aws_route_table_association" "a" {
 }
 
 resource "aws_security_group" "service_sg" {
+  name   = "sinnergy-service-sg"
   vpc_id = aws_vpc.this.id
 }
 
@@ -72,25 +93,57 @@ resource "aws_ecr_repository" "this" {
   name = "sinnergy-serve"
 }
 
+resource "aws_ecr_repository_policy" "this" {
+  repository = aws_ecr_repository.this.name
+
+  policy = jsonencode({
+    Version = "2008-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ],
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
 resource "aws_ecs_cluster" "this" {
   name = "sinnergy-cluster"
 }
 
-# ECS Task Definition for Fargate
+resource "aws_cloudwatch_log_group" "this" {
+  name              = "sinnergy-logs"
+  retention_in_days = 30
+}
+
+
 resource "aws_ecs_task_definition" "this" {
   family                   = "sinnergy-server-task"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"
-  memory                   = "512"
+  cpu                      = "2048"
+  memory                   = "4096"
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
 
   container_definitions = jsonencode([{
-    name  = "sinnergy-server"
-    image = "${aws_ecr_repository.this.repository_url}:latest"
-    portMappings = [{
-      containerPort = 50051
-    }]
+    name         = "sinnergy-server"
+    image        = "${aws_ecr_repository.this.repository_url}:${local.image_tag}"
+    portMappings = [{ containerPort = 50051 }]
+    logConfiguration = {
+      logDriver = "awslogs",
+      options = {
+        "awslogs-group"         = aws_cloudwatch_log_group.this.name,
+        "awslogs-region"        = "us-west-1",
+        "awslogs-stream-prefix" = "ecs"
+      }
+    }
   }])
 }
 
@@ -113,6 +166,12 @@ resource "aws_iam_role_policy_attachment" "a" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
+
+resource "aws_iam_role_policy_attachment" "b" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
 
 
 ################################################################################
@@ -140,6 +199,7 @@ resource "aws_ecs_service" "this" {
   network_configuration {
     subnets         = [aws_subnet.this.id]
     security_groups = [aws_security_group.service_sg.id]
+    assign_public_ip = true
   }
 
   # Ensure that tasks are always running
@@ -153,33 +213,30 @@ resource "aws_ecs_service" "this" {
 # NLB + Elastic IP
 resource "aws_eip" "this" {}
 
-# Create a Network Load Balancer
 resource "aws_lb" "this" {
   name                       = "sinnergy-nlb"
   internal                   = false
   load_balancer_type         = "network"
   enable_deletion_protection = false
 
-  subnets = [aws_subnet.this.id]
+  # subnets = [aws_subnet.this.id]
   # enable_cross_zone_load_balancing = true
   security_groups = [aws_security_group.nlb_sg.id]
 
-  # Attach the Elastic IP to the NLB
   subnet_mapping {
     subnet_id     = aws_subnet.this.id
     allocation_id = aws_eip.this.id
   }
 }
 
-# Create a Target Group for the NLB
 resource "aws_lb_target_group" "this" {
-  name     = "sinnergy-nlb-tg"
-  port     = 50051
-  protocol = "TCP"
-  vpc_id   = aws_vpc.this.id
+  name        = "sinnergy-nlb-tg"
+  port        = 50051
+  protocol    = "TCP"
+  vpc_id      = aws_vpc.this.id
+  target_type = "ip"
 }
 
-# Listener for the NLB
 resource "aws_lb_listener" "this" {
   load_balancer_arn = aws_lb.this.arn
   port              = 50051
@@ -192,6 +249,7 @@ resource "aws_lb_listener" "this" {
 }
 
 resource "aws_security_group" "nlb_sg" {
+  name   = "sinnergy-nlb-sg"
   vpc_id = aws_vpc.this.id
 }
 
@@ -205,70 +263,65 @@ resource "aws_security_group_rule" "nlb_ingress" {
   cidr_blocks = ["0.0.0.0/0"]
 }
 
+resource "aws_security_group_rule" "nlb_egress" {
+  security_group_id = aws_security_group.nlb_sg.id
+
+  type        = "egress"
+  from_port   = 50051
+  to_port     = 50051
+  protocol    = "tcp"
+  source_security_group_id = aws_security_group.service_sg.id
+}
+
 output "nlb_ip" {
   value = aws_eip.this.public_ip
 }
 
 
-################################################################################
-# LOAD BALANCER
+resource "aws_security_group" "vpce_sg" {
+  name   = "sinnergy-vpce-sg"
+  vpc_id = aws_vpc.this.id
+}
 
-# resource "aws_security_group" "alb_sg" {
-#   vpc_id = aws_vpc.this.id
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-#   ingress {
-#     from_port   = 80 # Change to 443 if you're using HTTPS
-#     to_port     = 80
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
+resource "aws_security_group_rule" "vpce_ingress" {
+  security_group_id = aws_security_group.vpce_sg.id
+
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "-1"
+  source_security_group_id = aws_security_group.service_sg.id
+}
+
+resource "aws_security_group_rule" "vpce_egress" {
+  security_group_id = aws_security_group.vpce_sg.id
+
+  type        = "egress"
+  from_port   = 0
+  to_port     = 65535
+  protocol    = "-1"
+  cidr_blocks = ["0.0.0.0/0"]
+}
 
 
-# resource "aws_lb" "this" {
-#   name               = "sinnergy-alb"
-#   internal           = false
-#   load_balancer_type = "application"
-#   security_groups    = [aws_security_group.alb_sg.id]
-#   enable_deletion_protection = false
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.us-west-1.ecr.api"
+  vpc_endpoint_type = "Interface"
 
-#   enable_cross_zone_load_balancing = true
-#   subnets                          = [aws_subnet.this.id]
-# }
+  subnet_ids         = [aws_subnet.this.id]
+  security_group_ids = [aws_security_group.vpce_sg.id]
 
-# resource "aws_lb_listener" "this" {
-#   load_balancer_arn = aws_lb.this.arn
-#   port              = "80" # Change to 443 if you're using HTTPS
+  private_dns_enabled = true
+}
 
-#   default_action {
-#     type             = "forward"
-#     target_group_arn = aws_lb_target_group.this.arn
-#   }
-# }
+resource "aws_vpc_endpoint" "ecr_docker" {
+  vpc_id            = aws_vpc.this.id
+  service_name      = "com.amazonaws.us-west-1.ecr.dkr"
+  vpc_endpoint_type = "Interface"
 
-# resource "aws_lb_target_group" "this" {
-#   name     = "sinnergy-tg"
-#   port     = 50051
-#   protocol = "HTTP" # Change if your service uses HTTPS
-#   vpc_id   = aws_vpc.this.id
-# }
-# output "alb_endpoint" {
-#   value = aws_lb.this.dns_name
-# }
+  subnet_ids         = [aws_subnet.this.id]
+  security_group_ids = [aws_security_group.vpce_sg.id]
 
-# resource "aws_route53_record" "this" {
-#   zone_id = "YOUR_ROUTE_53_ZONE_ID"
-#   name    = "service.yourdomain.com" 
-#   type    = "A"
-
-#   alias {
-#     name                   = aws_lb.this.dns_name
-#     zone_id                = aws_lb.this.zone_id
-#     evaluate_target_health = true
-#   }
-# }
+  private_dns_enabled = true
+}

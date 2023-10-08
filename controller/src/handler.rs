@@ -1,8 +1,8 @@
 use crate::events::ControlEvent;
+use crate::prison::MouseParoleOfficer;
 use rdev;
 use sinnergasm::protos as msg;
 use std::sync::mpsc;
-use crate::prison::MouseParoleOfficer;
 
 // fn handle_rdev(event_type: rdev::EventType) {
 //   match event_type {
@@ -27,7 +27,10 @@ use crate::prison::MouseParoleOfficer;
 //   }
 // }
 
-fn translate_event(officer: &mut MouseParoleOfficer, event: rdev::EventType) -> msg::ControlRequest {
+fn translate_event(
+  officer: &mut MouseParoleOfficer,
+  event: rdev::EventType,
+) -> msg::ControlRequest {
   msg::ControlRequest {
     input_event: Some(msg::UserInputEvent {
       r#type: Some(match event {
@@ -44,8 +47,7 @@ fn translate_event(officer: &mut MouseParoleOfficer, event: rdev::EventType) -> 
           msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
         }
         rdev::EventType::MouseMove { x, y } => {
-          let msg = msg::MouseMoveEvent { x, y };
-          let msg = officer.patch(msg);
+          let msg = officer.patch((x, y));
           msg::user_input_event::Type::MouseMove(msg)
         }
         rdev::EventType::Wheel { delta_x, delta_y } => {

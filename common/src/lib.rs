@@ -2,6 +2,8 @@
 //     include!(concat!(env!("OUT_DIR"), "/sinnergasm.rs"));
 // }
 
+pub mod options;
+
 pub mod protos {
   tonic::include_proto!("sinnergasm"); // The string specified here must match the proto package name
 }
@@ -11,7 +13,3 @@ pub enum UserInputEvent {
   Keyboard(i32, i32),
   Wheel(i32, i32),
 }
-
-pub fn my_func() {}
-
-pub const SECRET_TOKEN: &str = "secret";

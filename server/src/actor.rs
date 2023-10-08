@@ -59,7 +59,7 @@ where
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           device_map.retain(|_, listener| {
             if let Err(err) = listener.send(event.clone()) {
-              println!("Failed to send event to listener: {:?}", err);
+              tracing::info!("Failed to send event to listener: {:?}", err);
               return false;
             }
             return true;

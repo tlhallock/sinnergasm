@@ -1,30 +1,25 @@
-extern crate clap;
-use clap::{App, Arg, SubCommand};
-
-use sinnergasm::protos as msg;
-use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
-use sinnergasm::SECRET_TOKEN;
-use tokio_stream::{self, StreamExt};
-use tonic::metadata::MetadataValue;
-use tonic::transport::Channel;
 use tonic::Request;
+use tonic_health::proto::health_client::HealthClient;
+use tonic_health::proto::HealthCheckRequest;
+use sinergasm::protos::health::health_server::HealthServer;
+use sinnergasm::
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
-  let base_url = "http://localhost:50051";
-  let channel = Channel::from_static(base_url)
-    .concurrency_limit(256)
-    .connect()
-    .await?;
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let options = Options::new("cli".into());
+    let channel = tonic::transport::Channel::from_static("http://[::1]:50051")
+        .connect()
+        .await?;
 
-  let token: MetadataValue<_> = format!("Bearer {SECRET_TOKEN}",).parse()?;
-  let mut client = VirtualWorkspacesClient::with_interceptor(
-    channel,
-    move |mut req: Request<()>| {
-      req.metadata_mut().insert("authorization", token.clone());
-      Ok(req)
-    },
-  );
+    let mut client = HealthClient::new(channel);
 
-  Ok(())
+    let request = Request::new(HealthCheckRequest {
+        service: "".into(), // Specify the service name if needed
+    });
+
+    let response = client.check(request).await?;
+
+    println!("Health check response: {:?}", response);
+
+    Ok(())
 }

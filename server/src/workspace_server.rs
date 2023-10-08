@@ -112,6 +112,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     _request: tonic::Request<msg::CreateRequest>,
   ) -> std::result::Result<tonic::Response<msg::CreatedResponse>, tonic::Status>
   {
+    tracing::info!("Create workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -120,6 +121,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     _request: tonic::Request<msg::ListRequest>,
   ) -> std::result::Result<tonic::Response<msg::WorkspaceList>, tonic::Status>
   {
+    tracing::info!("List workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -127,6 +129,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     &self,
     _request: tonic::Request<msg::GetRequest>,
   ) -> std::result::Result<tonic::Response<msg::Workspace>, tonic::Status> {
+    tracing::info!("Get workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -137,6 +140,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<msg::ConfiguredResponse>,
     tonic::Status,
   > {
+    tracing::info!("Configure workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -145,6 +149,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     _request: tonic::Request<msg::DeleteRequest>,
   ) -> std::result::Result<tonic::Response<msg::DeleteResponse>, tonic::Status>
   {
+    tracing::info!("Delete workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -153,6 +158,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     request: tonic::Request<msg::TargetRequest>,
   ) -> std::result::Result<tonic::Response<msg::TargetResponse>, tonic::Status>
   {
+    tracing::info!("Target device request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
@@ -173,6 +179,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<msg::CancelSimulationResponse>,
     tonic::Status,
   > {
+    tracing::info!("Cancel simulation request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
@@ -197,6 +204,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<msg::CancelSubscriptionResponse>,
     tonic::Status,
   > {
+    tracing::info!("Cancel subscription request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
@@ -215,7 +223,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     request: tonic::Request<tonic::Streaming<msg::ControlRequest>>,
   ) -> std::result::Result<tonic::Response<msg::ControlResponse>, tonic::Status>
   {
-    println!("Got control workspace request");
+    tracing::info!("Control workspace request");
     let mut stream = request.into_inner();
     while let Some(req) = stream.next().await {
       if let Some(input_event) = req
@@ -225,12 +233,13 @@ impl VirtualWorkspaces for WorkspaceServer {
         })?
         .input_event
       {
-        println!("Got input event: {:?}", input_event);
         self
           .simulation_sender
           .send(SimulationEvent::SimulationEvent(
             self.the_workspace.name.clone(),
-            msg::SimulationEvent { input_event: Some(input_event.clone()), },
+            msg::SimulationEvent {
+              input_event: Some(input_event.clone()),
+            },
           ))
           .map_err(|e| tonic::Status::aborted(e.to_string()))?;
       }
@@ -246,6 +255,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<Self::SimulateWorkspaceStream>,
     tonic::Status,
   > {
+    tracing::info!("Simulate workspace request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
@@ -261,8 +271,7 @@ impl VirtualWorkspaces for WorkspaceServer {
 
     let response_stream =
       tokio_stream::wrappers::UnboundedReceiverStream::new(receiver)
-        .map(Ok::<_, tonic::Status>)
-        .inspect(|event| println!("Sending event 321: {:?}", event));
+        .map(Ok::<_, tonic::Status>);
     Ok(tonic::Response::new(Box::pin(response_stream)))
   }
 
@@ -273,6 +282,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<Self::SubscribeToWorkspaceStream>,
     tonic::Status,
   > {
+    tracing::info!("Subscribe to workspace request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;

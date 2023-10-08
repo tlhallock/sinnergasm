@@ -1,10 +1,9 @@
-use std::sync::mpsc as mpsc;
 use sinnergasm::protos as msg;
+use std::sync::mpsc;
 
 use rdev;
 
 use crate::events::ControlEvent;
-
 
 #[derive(Default)]
 pub(crate) struct MouseTracker {
@@ -13,56 +12,54 @@ pub(crate) struct MouseTracker {
 
 impl MouseTracker {
   pub(crate) fn listen(&mut self, event: ControlEvent) {
-    if let ControlEvent::RDevEvent(rdev::EventType::MouseMove { x, y }) = event {
+    if let ControlEvent::RDevEvent(rdev::EventType::MouseMove { x, y }) = event
+    {
       self.last_position = Some((x, y));
     }
   }
 }
 
-
-
 pub(crate) struct MouseParoleOfficer {
   required_position: (f64, f64),
-  virtual_location: (f64, f64),
+  // virtual_location: (f64, f64),
 }
 
 impl MouseParoleOfficer {
   pub(crate) fn new(last_position: (f64, f64)) -> Self {
     Self {
       required_position: last_position,
-      virtual_location: last_position,
+      // virtual_location: last_position,
     }
   }
 
-  pub(crate) fn patch(&mut self, message: msg::MouseMoveEvent) -> msg::MouseMoveEvent {
-    let msg::MouseMoveEvent { x, y } = message;
+  pub(crate) fn patch(&mut self, (x, y): (f64, f64)) -> msg::MouseMoveEvent {
+    let message = msg::MouseMoveEvent {
+      delta_x: x - self.required_position.0,
+      delta_y: y - self.required_position.1,
+    };
     if x == self.required_position.0 && y == self.required_position.1 {
-      // Ignore generated events
-      println!("Ignoring generated event");
+      // Ignore the events we create
       return message;
     }
 
-    if let Err(err) = rdev::simulate(
-      &rdev::EventType::MouseMove {
-        x: self.required_position.0,
-        y: self.required_position.1,
-      }
-    ) {
+    if let Err(err) = rdev::simulate(&rdev::EventType::MouseMove {
+      x: self.required_position.0,
+      y: self.required_position.1,
+    }) {
       println!("Failed to simulate mouse move: {:?}", err);
     }
 
-    let dx = x - self.required_position.0;
-    let dy = y - self.required_position.1;
-    self.virtual_location = (self.virtual_location.0 + dx, self.virtual_location.1 + dy);
-    println!("Virtual location: {:?}", self.virtual_location);
-    msg::MouseMoveEvent {
-      x: self.virtual_location.0,
-      y: self.virtual_location.1,
-    }
+    // let dx = x - self.required_position.0;
+    // let dy = y - self.required_position.1;
+    // self.virtual_location = (self.virtual_location.0 + dx, self.virtual_location.1 + dy);
+    // println!("Virtual location: {:?}", self.virtual_location);
+    // msg::MouseMoveEvent {
+    //   x: self.virtual_location.0,
+    //   y: self.virtual_location.1,
+    // }
+    message
   }
 }
-
-
 
 // if let ControlEvent::RDevEvent(rdev::EventType::MouseMove { x, y }) = event {
 //   self.last_position = Some((x, y));

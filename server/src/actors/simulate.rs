@@ -42,12 +42,12 @@ impl SimulationActor {
           .entry(workspace_name)
           .or_insert_with(DeviceMap::default);
 
-          // just use the last one until we implement the target message
-          device_map.target = Some((device_name.clone(), sender.clone()));
+        // just use the last one until we implement the target message
+        device_map.target = Some((device_name.clone(), sender.clone()));
 
-          device_map.devices.insert(device_name, sender);
+        device_map.devices.insert(device_name, sender);
 
-          println!("Added simulator for workspace");
+        println!("Added simulator for workspace");
       }
       SimulationEvent::RemoveSimulator(workspace_name, device_name) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
@@ -70,11 +70,8 @@ impl SimulationActor {
         }
       }
       SimulationEvent::SimulationEvent(workspace_name, event) => {
-        println!("SimulationEvent: {:?}", event);
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
-          println!("There is a listener for this event");
           if let Some((_, sender)) = device_map.target.as_ref() {
-            println!("There is a target for this event");
             if let Err(err) = sender.send(event.clone()) {
               println!("Failed to send event to listener: {:?}", err);
             }
