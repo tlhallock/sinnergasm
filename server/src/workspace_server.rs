@@ -129,8 +129,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     &self,
     _request: tonic::Request<msg::GetRequest>,
   ) -> std::result::Result<tonic::Response<msg::Workspace>, tonic::Status> {
-    tracing::info!("Get workspace request");
-    Err(tonic::Status::internal("Not implemented"))
+    Ok(tonic::Response::new(self.the_workspace.clone()))
   }
 
   async fn configure_workspace(

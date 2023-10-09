@@ -52,6 +52,7 @@ message WorkspaceSummary {
 // Get
 //////////////////////
 message GetRequest {
+  string name = 1;
 }
 
 message Workspace {

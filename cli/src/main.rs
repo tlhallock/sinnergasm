@@ -21,5 +21,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Health check response: {:?}", response);
 
+
+
+//   {
+//     let request = msg::ListRequest {};
+//     let response = client.list_workspaces(request).await;
+//     if let Ok(response) = response {
+//       println!("Response: {:?}", response);
+//     }
+//   }
+
     Ok(())
 }

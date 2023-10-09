@@ -1,16 +1,25 @@
+
+pub mod display;
+pub mod events;
+pub mod handler;
+pub mod listener;
+
 use std::time::Duration;
+use display::launch_display;
 
 use anyhow;
-use rdev::simulate;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
 use tokio::time::timeout;
-use tokio_stream;
 use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
-use sinnergasm::errors::RDevError;
+use crate::events::SimulatorEvent;
+use crate::events::SimulatorClientEvent;
+
+use crate::handler::simulate_receiver;
+use crate::listener::listen_to_mouse;
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -20,74 +29,6 @@ use sinnergasm::errors::RDevError;
 // .rate_limit(5, Duration::from_secs(1))
 
 
-enum SimulatorEvent {
-  LocalMouseChanged(f64, f64),
-  SimulateEvent(msg::SimulationEvent),
-}
-
-fn simulate_input_event((mouse_x, mouse_y): (f64, f64), event: msg::user_input_event::Type) -> Result<(), rdev::SimulateError> {
-  match event {
-    msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent { delta_x, delta_y }) => {
-      simulate(&rdev::EventType::MouseMove {
-        x: mouse_x + delta_x,
-        y: mouse_y + delta_y,
-      })
-    }
-    msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}) => {
-      Ok(())
-    }
-    msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {}) => {
-      Ok(())
-    }
-    msg::user_input_event::Type::Wheel(msg::WheelEvent { dx, dy}) => {
-      simulate(&rdev::EventType::Wheel {
-        delta_x: dx.into(), delta_y: dy.into()
-      })
-    }
-  }
-}
-
-
-async fn simulate_receiver(
-  mut receiver: tokio::sync::mpsc::UnboundedReceiver<SimulatorEvent>,
-) -> Result<(), rdev::SimulateError> {
-  let mut current_mouse_position = None;
-  while let Some(event) = receiver.recv().await {
-    match event {
-      SimulatorEvent::LocalMouseChanged(x, y) => {
-        current_mouse_position = Some((x, y));
-      },
-      SimulatorEvent::SimulateEvent(event) => {
-        if let Some((mouse_x, mouse_y)) = current_mouse_position {
-        if let Some(event) = event.input_event {
-          if let Some(event) = event.r#type {
-            // Fail on first error?
-            simulate_input_event((mouse_x, mouse_y), event)?
-          }
-        }
-      } else {
-        println!("No mouse event yet, we do not know the current location of the mouse.");
-      }
-      }
-    }
-  }
-  Ok(())
-}
-
-
-
-pub(crate) fn listen_to_mouse(
-  sender: tokio::sync::mpsc::UnboundedSender<SimulatorEvent>,
-) -> Result<(), RDevError> {
-  rdev::listen(move |event| {
-    if let rdev::EventType::MouseMove { x, y } = event.event_type {
-      if let Err(e) = sender.send(SimulatorEvent::LocalMouseChanged(x, y)) {
-        eprintln!("Error: {:?}", e);
-      }
-    }
-  })?;
-  Ok(())
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -105,15 +46,45 @@ async fn main() -> anyhow::Result<()> {
     },
   );
 
-  {
-    let request = msg::ListRequest {};
-    let response = client.list_workspaces(request).await;
-    if let Ok(response) = response {
-      println!("Response: {:?}", response);
+  let devices = {
+    let request = msg::GetRequest { name: options.workspace.clone(), };
+    let workspace = client.get_workspace(request).await?.into_inner();
+    println!("Connecting to workspace: {:?}", workspace);
+    workspace.devices
+  };
+
+
+  let (grpc_sender, mut grpc_receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorClientEvent>();
+
+
+  let workspace_name = options.workspace.clone();
+  let grpc_client = tokio::task::spawn(async move {
+    while let Some(message) = grpc_receiver.recv().await {
+      match message {
+        SimulatorClientEvent::TargetDevice(device) => {
+          let request = msg::TargetRequest {
+            workspace: workspace_name.clone(),
+            device: device.name,
+            clipboard: "".into(),
+          };
+          client.target_device(request).await?;
+        }
+      }
     }
-  }
+    anyhow::Ok(())
+  });
+
+
+  let display_sender = grpc_sender.clone();
+  let display_task = tokio::task::spawn(async move {
+    launch_display(display_sender, devices)?;
+    anyhow::Ok(())
+  });
+
+
 
   let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorEvent>();
+  
 
   let key_sender = sender.clone();
   let _ = tokio::task::spawn(async move { listen_to_mouse(key_sender) });
