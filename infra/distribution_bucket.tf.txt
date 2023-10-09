@@ -1,0 +1,79 @@
+
+resource "aws_s3_bucket" "src_dist" {
+  bucket = "sinnergy-distribution-sources"
+}
+
+resource "aws_s3_bucket_website_configuration" "this" {
+  bucket = aws_s3_bucket.src_dist.bucket
+
+  index_document {
+    suffix = "index.html"
+  }
+}
+
+resource "aws_s3_bucket_ownership_controls" "this" {
+  bucket = aws_s3_bucket.src_dist.id
+  rule {
+    object_ownership = "ObjectWriter"
+  }
+}
+
+resource "aws_s3_bucket_acl" "this" {
+  depends_on = [aws_s3_bucket_ownership_controls.this]
+  bucket = aws_s3_bucket.src_dist.id
+  acl    = "public-read"
+}
+
+resource "aws_s3_bucket_public_access_block" "this" {
+  bucket = aws_s3_bucket.src_dist.id
+  block_public_acls = false
+  block_public_policy = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+
+resource "null_resource" "zip_src" {
+  provisioner "local-exec" {
+    command = <<EOF
+cd .. && \
+zip -r infra/${path.module}/sinnergy-sources.zip \
+  ${path.module}/Cargo.toml \
+  ${path.module}/common/src/ \
+  ${path.module}/common/Cargo.toml \
+  ${path.module}/controller/src/ \
+  ${path.module}/controller/Cargo.toml \
+  ${path.module}/simulator/src/ \
+  ${path.module}/simulator/Cargo.toml \
+  ${path.module}/controller/src/ \
+  ${path.module}/controller/Cargo.toml
+EOF
+  }
+
+  triggers = {
+    always_run = "${timestamp()}"
+  }
+}
+
+resource "aws_s3_object" "sources" {
+  depends_on = [null_resource.zip_src, aws_s3_bucket_public_access_block.this]
+
+  bucket = aws_s3_bucket.src_dist.bucket
+  key    = "sinnergy-sources.zip"
+  source = "${path.module}/sinnergy-sources.zip"
+  acl = "public-read"
+}
+
+resource "aws_s3_object" "index" {
+  depends_on = [aws_s3_bucket_public_access_block.this]
+
+  bucket = aws_s3_bucket.src_dist.bucket
+  key    = "index.html"
+  source = "${path.module}/index.html"
+  acl = "public-read"
+}
+
+
+# output "website_url" {
+#   value = aws_s3_bucket.src_dist.website_endpoint
+# }

@@ -6,10 +6,6 @@ provider "aws" {
   region = "us-west-1"
 }
 
-# variable "image_tag" {
-#   description = "The image tag to use"
-#   type        = string
-# }
 
 locals {
   image_tag = trimspace(file("${path.module}/../container/version.txt"))
@@ -38,14 +34,6 @@ resource "aws_subnet" "this" {
   }
 
 }
-
-# resource "aws_subnet" "public" {
-#   vpc_id     = aws_vpc.this.id
-#   cidr_block = "10.0.2.0/24"
-#   tags = {
-#     Name = "sinnergy-private-subnet"
-#   }
-# }
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
@@ -126,7 +114,6 @@ resource "aws_cloudwatch_log_group" "this" {
   retention_in_days = 30
 }
 
-
 resource "aws_ecs_task_definition" "this" {
   family                   = "sinnergy-server-task"
   network_mode             = "awsvpc"
@@ -175,8 +162,6 @@ resource "aws_iam_role_policy_attachment" "b" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-
-
 ################################################################################
 # SERVICE
 
@@ -186,12 +171,6 @@ resource "aws_ecs_service" "this" {
   task_definition = aws_ecs_task_definition.this.arn
   launch_type     = "FARGATE"
   desired_count   = 1
-
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.this.arn
-  #   container_name   = "sinnergy-server"
-  #   container_port   = 50051
-  # }
 
   load_balancer {
     target_group_arn = aws_lb_target_group.this.arn
@@ -214,7 +193,6 @@ resource "aws_ecs_service" "this" {
 
 ################################################################################
 # NLB
-# resource "aws_eip" "this" {}
 
 resource "aws_lb" "this" {
   name                       = "sinnergy-nlb"
@@ -276,16 +254,6 @@ resource "aws_security_group_rule" "nlb_egress" {
   source_security_group_id = aws_security_group.service_sg.id
 }
 
-# output "nlb_ip" {
-#   value = aws_eip.this.public_ip
-# }
-
-output "sinnergy_nlb_dns_name" {
-  description = "The DNS name of the Sinnergy NLB"
-  value       = aws_lb.this.dns_name
-}
-
-
 resource "aws_security_group" "vpce_sg" {
   name   = "sinnergy-vpce-sg"
   vpc_id = aws_vpc.this.id
@@ -311,7 +279,6 @@ resource "aws_security_group_rule" "vpce_egress" {
   cidr_blocks = ["0.0.0.0/0"]
 }
 
-
 resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id            = aws_vpc.this.id
   service_name      = "com.amazonaws.us-west-1.ecr.api"
@@ -332,4 +299,10 @@ resource "aws_vpc_endpoint" "ecr_docker" {
   security_group_ids = [aws_security_group.vpce_sg.id]
 
   private_dns_enabled = true
+}
+
+
+output "sinnergy_nlb_dns_name" {
+  description = "The DNS name of the Sinnergy NLB"
+  value       = aws_lb.this.dns_name
 }
