@@ -32,7 +32,7 @@ fn ui_builder(
     let label = format!("Go to workspace {}", device.name.clone());
     let button_sender = sender.clone();
     let button = Button::new(label).on_click(move |_ctx, _data, _env| {
-      button_sender.send(SimulatorClientEvent::GoToWorkspace(device.clone())).expect(
+      button_sender.send(SimulatorClientEvent::TargetDevice(device.clone())).expect(
         "Unable to go to queue workspace request")
     });
     flex.add_child(button);

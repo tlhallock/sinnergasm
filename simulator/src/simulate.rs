@@ -28,6 +28,9 @@ use crate::listener::listen_to_mouse;
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
+fn print_type_of<T>(_: &T) {
+  println!("{}", std::any::type_name::<T>());
+}
 
 
 #[tokio::main]
@@ -45,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
       Ok::<_, Status>(req)
     },
   );
+  print_type_of(&client);
 
   let devices = {
     let request = msg::GetRequest { name: options.workspace.clone(), };
@@ -54,11 +58,12 @@ async fn main() -> anyhow::Result<()> {
   };
 
 
+  // DOn't need this one, the client is clone
   let (grpc_sender, mut grpc_receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorClientEvent>();
 
-
+  let mut sender_client = client.clone();
   let workspace_name = options.workspace.clone();
-  let grpc_client = tokio::task::spawn(async move {
+  let grpc_task = tokio::task::spawn(async move {
     while let Some(message) = grpc_receiver.recv().await {
       match message {
         SimulatorClientEvent::TargetDevice(device) => {
@@ -67,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
             device: device.name,
             clipboard: "".into(),
           };
-          client.target_device(request).await?;
+          sender_client.target_device(request).await?;
         }
       }
     }
@@ -81,10 +86,7 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
-
-
   let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorEvent>();
-  
 
   let key_sender = sender.clone();
   let _ = tokio::task::spawn(async move { listen_to_mouse(key_sender) });
@@ -111,10 +113,9 @@ async fn main() -> anyhow::Result<()> {
   });
 
   simulate_task.await??;
-
-  if let Err(err) = relay_task.await {
-    eprintln!("Error: {}", err);
-  }
+  relay_task.await??;
+  display_task.await??;
+  grpc_task.await??;
 
   Ok(())
 }
