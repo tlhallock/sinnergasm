@@ -1,8 +1,10 @@
 // pub const HOST: &str = "localhost";
 // pub const HOST: &str = "54.177.251.247";
 // pub const HOST: &str = "13.56.156.19";
-pub const HOST: &str =
-  "sinnergy-nlb-bdef3e305c57149f.elb.us-west-1.amazonaws.com";
+// pub const HOST: &str =
+//   "sinnergy-nlb-bdef3e305c57149f.elb.us-west-1.amazonaws.com";
+
+pub const HOST: &str = "10.0.0.129";
 
 pub const PORT: i64 = 50051;
 
