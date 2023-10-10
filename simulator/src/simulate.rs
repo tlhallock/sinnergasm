@@ -54,9 +54,8 @@ async fn main() -> anyhow::Result<()> {
     let request = msg::GetRequest { name: options.workspace.clone(), };
     let workspace = client.get_workspace(request).await?.into_inner();
     println!("Connecting to workspace: {:?}", workspace);
-    workspace.devices
+    workspace.devices.iter().filter(|device| device.name != options.device).collect::<Vec<_>>()
   };
-
 
   // Don't need this one, the client is clone
   // TODO: remove this channel
@@ -80,12 +79,6 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
-
-  let display_sender = grpc_sender.clone();
-  let display_task = tokio::task::spawn(async move {
-    launch_display(display_sender, devices)?;
-    anyhow::Ok(())
-  });
 
   let (sender, receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorEvent>();
 
@@ -113,8 +106,9 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
-  display_task.await??;
-  println!("Display task finished");
+  launch_display(grpc_sender, devices)?;
+  // TODO: figure out how to gracefully close the connections...
+  panic!();
 
   simulate_task.await??;
   relay_task.await??;

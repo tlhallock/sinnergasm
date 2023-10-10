@@ -25,6 +25,7 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
 
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let options = Options::new("desktop".into());
@@ -42,6 +43,14 @@ async fn main() -> anyhow::Result<()> {
     },
   );
 
+
+  let other_devices = {
+    let request = msg::GetRequest { name: options.workspace.clone(), };
+    let workspace = client.get_workspace(request).await?.into_inner();
+    println!("Connecting to workspace: {:?}", workspace);
+    workspace.devices.iter().filter(|device| device.name != options.device).cloned().collect::<Vec<_>>()
+  };
+
   let (app_snd, app_rcv) = mpsc::channel();
   let (control_snd, control_rcv) =
     tokio::sync::mpsc::unbounded_channel::<msg::ControlRequest>();
@@ -51,22 +60,52 @@ async fn main() -> anyhow::Result<()> {
       .await
   });
 
+  let subscription_request = msg::WorkspaceSubscriptionRequest {
+    workspace: options.workspace.clone(),
+    device: options.device.clone(),
+  };
+  let targetted_sender = app_snd.clone();
+  let current_device = options.device.clone();
+  let network_task = tokio::task::spawn(async move {
+    let subscription = client
+      .subscribe_to_workspace(subscription_request)
+      .await?.into_inner();
+    while let Some(message) = subscription.message().await? {
+      if let Some(message) = message.event_type {
+        match message {
+          msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device }) => {
+            if device != current_device {
+              continue;
+            }
+            targetted_sender.send(
+              events::ControlEvent::WeBeTargetted
+            ).expect(
+              "Unable to send targetted event"
+            );
+          }
+          _ => {},
+        }
+      }
+    }
+    anyhow::Ok(())
+  });
+
   let key_sender = app_snd.clone();
   let _ =
     tokio::task::spawn(async move { listen_to_keyboard_and_mouse(key_sender) });
-
-  let display_sender = app_snd.clone();
-  let display_task =
-    tokio::task::spawn(async move { launch_display(display_sender) });
 
   let forward_task =
     tokio::task::spawn(
       async move { forward_events(app_rcv, control_snd).await },
     );
 
-  let (r1, r2, r3) = tokio::join!(display_task, forward_task, network_task);
-  r1??;
-  r2??;
-  r3??;
+
+  launch_display(app_snd, other_devices)?;
+  // TODO: cleanly close the connections...
+  panic!("Display closed");
+
+  forward_task.await??;
+  network_task.await??;
+
   anyhow::Ok(())
 }

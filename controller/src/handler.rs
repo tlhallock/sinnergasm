@@ -91,6 +91,7 @@ pub async fn forward_events(
         }
       }
       ControlEvent::StopListening => {
+        
         println!("Stopped Listening");
         officer = None;
       }
