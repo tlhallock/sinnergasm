@@ -1,20 +1,12 @@
 
-
 use crate::events::SimulatorClientEvent;
-
 use druid::widget::Button;
 use druid::widget::Flex;
-use druid::widget::Label;
-
 use druid::AppLauncher;
 use druid::Data;
 use druid::Widget;
-use druid::WidgetExt;
 use druid::WindowDesc;
-
 use sinnergasm::protos as msg;
-
-use std::sync::mpsc::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 
 

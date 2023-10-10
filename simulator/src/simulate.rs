@@ -58,7 +58,8 @@ async fn main() -> anyhow::Result<()> {
   };
 
 
-  // DOn't need this one, the client is clone
+  // Don't need this one, the client is clone
+  // TODO: remove this channel
   let (grpc_sender, mut grpc_receiver) = tokio::sync::mpsc::unbounded_channel::<SimulatorClientEvent>();
 
   let mut sender_client = client.clone();
@@ -112,9 +113,11 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
+  display_task.await??;
+  println!("Display task finished");
+
   simulate_task.await??;
   relay_task.await??;
-  display_task.await??;
   grpc_task.await??;
 
   Ok(())
