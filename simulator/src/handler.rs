@@ -12,11 +12,15 @@ use tonic::metadata::MetadataValue;
 use tonic::transport::Channel;
 use tonic::{Request, Status};
 use sinnergasm::errors::RDevError;
+use tokio::sync::mpsc as tokio_mpsc;
+use ui_common::events::UiEvent;
 
-use crate::events::SimulatorEvent;
 
 
-fn simulate_input_event((mouse_x, mouse_y): (f64, f64), event: msg::user_input_event::Type) -> Result<(), rdev::SimulateError> {
+fn simulate_input_event(
+  (mouse_x, mouse_y): (f64, f64),
+  event: msg::user_input_event::Type
+) -> Result<(), rdev::SimulateError> {
   match event {
     msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent { delta_x, delta_y }) => {
       simulate(&rdev::EventType::MouseMove {
@@ -40,18 +44,15 @@ fn simulate_input_event((mouse_x, mouse_y): (f64, f64), event: msg::user_input_e
 
 
 pub(crate) async fn simulate_receiver(
-  mut receiver: tokio::sync::mpsc::UnboundedReceiver<SimulatorEvent>,
-) -> Result<(), rdev::SimulateError> {
+  mut receiver: tokio_mpsc::UnboundedReceiver<UiEvent>,
+) -> Result<(), anyhow::Error> {
   let mut current_mouse_position = None;
   while let Some(event) = receiver.recv().await {
     match event {
-      SimulatorEvent::ReturnControl => {
-
-      },
-      SimulatorEvent::LocalMouseChanged(x, y) => {
+      UiEvent::LocalMouseChanged(x, y) => {
         current_mouse_position = Some((x, y));
       },
-      SimulatorEvent::SimulateEvent(event) => {
+      UiEvent::SimulateEvent(event) => {
         if let Some((mouse_x, mouse_y)) = current_mouse_position {
         if let Some(event) = event.input_event {
           if let Some(event) = event.r#type {
@@ -63,6 +64,12 @@ pub(crate) async fn simulate_receiver(
         println!("No mouse event yet, we do not know the current location of the mouse.");
       }
       }
+        UiEvent::Quit => todo!(),
+        UiEvent::RequestTarget(_) |
+        UiEvent::Targetted  |
+        UiEvent::Untargetted |
+        UiEvent::ClipboardUpdated(_) => {},
+        UiEvent::ControlEvent(_) => panic!("Message not expected"),
     }
   }
   Ok(())

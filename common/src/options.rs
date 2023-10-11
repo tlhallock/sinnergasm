@@ -15,6 +15,7 @@ pub fn read_token() -> String {
     .into()
 }
 
+#[derive(Clone)]
 pub struct Options {
   pub base_url: String,
   pub token: String,

@@ -1,33 +1,35 @@
 
 
-use std::time::Duration;
+use sinnergasm::{errors::RDevError, options::Options, grpc_client::GrpcClient};
 
-use anyhow;
-use rdev::simulate;
-use sinnergasm::options::Options;
+use tokio::sync::mpsc as tokio_mpsc;
+use ui_common::events::UiEvent;
 use sinnergasm::protos as msg;
-use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
-use tokio::time::timeout;
-use tokio_stream;
-use tonic::metadata::MetadataValue;
-use tonic::transport::Channel;
-use tonic::{Request, Status};
-use sinnergasm::errors::RDevError;
-
-use crate::events::SimulatorEvent;
 
 
-
-pub(crate) fn listen_to_mouse(
-  sender: tokio::sync::mpsc::UnboundedSender<SimulatorEvent>,
+pub(crate) fn listen_to_system(
+  sender: tokio_mpsc::UnboundedSender<UiEvent>,
 ) -> Result<(), RDevError> {
   rdev::listen(move |event| {
     if let rdev::EventType::MouseMove { x, y } = event.event_type {
-      if let Err(e) = sender.send(SimulatorEvent::LocalMouseChanged(x, y)) {
-        eprintln!("Error: {:?}", e);
-      }
+      sender.send(UiEvent::LocalMouseChanged(x, y)).expect("Unable to send mouse event");
     }
   })?;
   Ok(())
 }
 
+pub(crate) async fn listen_to_client(
+  options: Options,
+  mut client: GrpcClient,
+  sender: tokio_mpsc::UnboundedSender<UiEvent>,
+) -> Result<(), anyhow::Error> {
+  let request = msg::SimulateRequest {
+    workspace: options.workspace.clone(),
+    device: options.device.clone(),
+  };
+  let mut stream = client.simulate_workspace(request).await?.into_inner();
+  while let Some(event) = stream.message().await? {
+    sender.send(UiEvent::SimulateEvent(event))?;
+  }
+  Ok(())
+}

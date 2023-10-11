@@ -9,6 +9,7 @@ path = "src/control.rs"
 
 [dependencies]
 sinnergism_common = { path = "../common", features = ["use-rdev"] }
+sinnergism_ui_common = { path = "../ui_common" }
 
 rdev = "0.5.3"
 druid = "0.8"
@@ -20,3 +21,4 @@ tokio-stream = "0.1.14"
 anyhow = "1.0.75"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.17"
+futures = "0.3.28"

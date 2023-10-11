@@ -1,5 +1,4 @@
 
-use crate::events::SimulatorClientEvent;
 use druid::widget::Button;
 use druid::widget::Flex;
 use druid::AppLauncher;

@@ -1,9 +1,9 @@
 use sinnergasm::protos as msg;
+use ui_common::events::UiEvent;
 use std::sync::mpsc;
 
 use rdev;
 
-use crate::events::ControlEvent;
 
 // TODO: there is a grab feature, maybe the prison is not needed!
 
@@ -13,8 +13,8 @@ pub(crate) struct MouseTracker {
 }
 
 impl MouseTracker {
-  pub(crate) fn listen(&mut self, event: ControlEvent) {
-    if let ControlEvent::RDevEvent(rdev::EventType::MouseMove { x, y }) = event
+  pub(crate) fn listen(&mut self, event: UiEvent) {
+    if let UiEvent::ControlEvent(rdev::EventType::MouseMove { x, y }) = event
     {
       self.last_position = Some((x, y));
     }

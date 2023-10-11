@@ -1,111 +1,84 @@
+
 extern crate rdev;
 
-pub mod display;
+// pub mod display;
 pub mod events;
 pub mod handler;
 pub mod listener;
 pub mod options;
 pub mod prison;
-use tokio::time::timeout;
-use tokio::time::Duration;
-// pub mod display2;
 
-use std::sync::mpsc;
-
-use crate::display::launch_display;
-use crate::handler::forward_events;
-use crate::listener::listen_to_keyboard_and_mouse;
+use crate::handler::handle_events;
+use crate::listener::listen_to_system;
 use anyhow;
 use sinnergasm::options::Options;
-use sinnergasm::protos as msg;
-use sinnergasm::protos::virtual_workspaces_client::VirtualWorkspacesClient;
 use tokio_stream;
+use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tonic::metadata::MetadataValue;
-use tonic::transport::Channel;
-use tonic::{Request, Status};
+
+use ui_common::device_display::display_devices;
+use ui_common::target::send_target_requests;
+use sinnergasm::grpc_client::create_client;
+use ui_common::subscribe::subscribe_to_workspace;
+
 
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let options = Options::new("desktop".into());
-  let channel = Channel::from_shared(options.base_url.clone())?
-    .concurrency_limit(options.concurrency_limit);
-  let connect_future = channel.connect();
-  let channel =
-    timeout(Duration::from_secs(options.timeout), connect_future).await??;
-  let token: MetadataValue<_> = format!("Bearer {}", options.token).parse()?;
-  let mut client = VirtualWorkspacesClient::with_interceptor(
-    channel,
-    move |mut req: Request<()>| {
-      req.metadata_mut().insert("authorization", token.clone());
-      Ok::<_, Status>(req)
-    },
-  );
+  let client = create_client(&options).await?;
+  
+  let (sender, receiver) = tokio_mpsc::unbounded_channel();
+  let (control_sender, control_receiver) = tokio_mpsc::unbounded_channel();
+  let (target_sender, target_receiver) = tokio_mpsc::unbounded_channel();
 
-
-  let other_devices = {
-    let request = msg::GetRequest { name: options.workspace.clone(), };
-    let workspace = client.get_workspace(request).await?.into_inner();
-    println!("Connecting to workspace: {:?}", workspace);
-    workspace.devices.iter().filter(|device| device.name != options.device).cloned().collect::<Vec<_>>()
-  };
-
-  let (app_snd, app_rcv) = mpsc::channel();
-  let (control_snd, control_rcv) =
-    tokio::sync::mpsc::unbounded_channel::<msg::ControlRequest>();
+  let receiver_stream = UnboundedReceiverStream::new(control_receiver);
+  let mut client_clone = client.clone();
   let network_task = tokio::task::spawn(async move {
-    client
-      .control_workspace(UnboundedReceiverStream::new(control_rcv))
-      .await
-  });
-
-  let subscription_request = msg::WorkspaceSubscriptionRequest {
-    workspace: options.workspace.clone(),
-    device: options.device.clone(),
-  };
-  let targetted_sender = app_snd.clone();
-  let current_device = options.device.clone();
-  let network_task = tokio::task::spawn(async move {
-    let subscription = client
-      .subscribe_to_workspace(subscription_request)
-      .await?.into_inner();
-    while let Some(message) = subscription.message().await? {
-      if let Some(message) = message.event_type {
-        match message {
-          msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device }) => {
-            if device != current_device {
-              continue;
-            }
-            targetted_sender.send(
-              events::ControlEvent::WeBeTargetted
-            ).expect(
-              "Unable to send targetted event"
-            );
-          }
-          _ => {},
-        }
-      }
-    }
+    client_clone.control_workspace(receiver_stream).await?;
     anyhow::Ok(())
   });
 
-  let key_sender = app_snd.clone();
-  let _ =
-    tokio::task::spawn(async move { listen_to_keyboard_and_mouse(key_sender) });
+  let sender_clone = sender.clone();
+  let client_clone = client.clone();
+  let options_clone = options.clone();
+  let subscribe_task = tokio::task::spawn(async move {
+    subscribe_to_workspace(options_clone, client_clone, sender_clone).await
+  });
 
-  let forward_task =
-    tokio::task::spawn(
-      async move { forward_events(app_rcv, control_snd).await },
-    );
+  let sender_clone = sender.clone();
+  let _ = tokio::task::spawn(async move {
+    listen_to_system(sender_clone)?;
+    anyhow::Ok(())
+  });
 
+  let options_clone = options.clone();
+  let client_clone = client.clone();
+  let target_task = tokio::task::spawn(async move {
+    send_target_requests(receiver, target_sender, client_clone, options_clone).await?;
+    Ok(())
+  });
 
-  launch_display(app_snd, other_devices)?;
+  let forward_task = tokio::task::spawn(async move {
+    handle_events(target_receiver, control_sender).await?;
+    Ok(())
+  });
+
+  display_devices(client, &options, sender).await?;
+
   // TODO: cleanly close the connections...
   panic!("Display closed");
 
-  forward_task.await??;
-  network_task.await??;
+  let futures = vec![forward_task, target_task, subscribe_task, network_task];
+  futures::future::join_all(futures).await;
 
   anyhow::Ok(())
 }
+
+
+  // let forward_sender = sender.clone();
+  // let foward_task = tokio::task::spawn(async move {
+  //   while let Some(event) = ui_receiver.recv().await {
+  //     forward_sender.send(event).expect("Unable to send forward ui event");
+  //   }
+  // });

@@ -3,6 +3,7 @@
 // }
 
 pub mod options;
+pub mod grpc_client;
 
 #[cfg(feature = "use-rdev")]
 pub mod errors;

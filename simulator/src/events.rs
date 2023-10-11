@@ -1,14 +1,10 @@
 
-use sinnergasm::protos as msg;
+// use sinnergasm::protos as msg;
+// use ui_common::events::UiEvent;
 
 
-pub(crate) enum SimulatorEvent {
-  ReturnControl,
-  LocalMouseChanged(f64, f64),
-  SimulateEvent(msg::SimulationEvent),
-}
-
-
-pub(crate) enum SimulatorClientEvent {
-  TargetDevice(msg::Device),
-}
+// pub(crate) enum SimulatorEvent {
+//   UiEvent(UiEvent),
+//   LocalMouseChanged(i32, i32),
+//   SimulateEvent(msg::SimulationEvent),
+// }

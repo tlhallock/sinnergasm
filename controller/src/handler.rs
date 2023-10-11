@@ -1,8 +1,9 @@
-use crate::events::ControlEvent;
 use crate::prison::MouseParoleOfficer;
 use rdev;
 use sinnergasm::protos as msg;
-use std::sync::mpsc;
+use ui_common::events::UiEvent;
+use tokio::sync::mpsc as tokio_mpsc;
+use anyhow;
 
 // fn handle_rdev(event_type: rdev::EventType) {
 //   match event_type {
@@ -61,28 +62,31 @@ fn translate_event(
   }
 }
 
-pub async fn forward_events(
-  receiver: mpsc::Receiver<ControlEvent>,
-  sender: tokio::sync::mpsc::UnboundedSender<msg::ControlRequest>,
-) -> Result<(), mpsc::RecvError> {
+pub async fn handle_events(
+  mut receiver: tokio_mpsc::UnboundedReceiver<UiEvent>,
+  sender: tokio_mpsc::UnboundedSender<msg::ControlRequest>,
+) -> Result<(), anyhow::Error> {
   let mut last_position = None;
   let mut officer = None;
 
-  loop {
-    let event = receiver.recv()?;
+  while let Some(event) = receiver.recv().await {
     match event {
-      ControlEvent::RDevEvent(event_type) => {
+      UiEvent::ControlEvent(event_type) => {
         if let Some(officer) = officer.as_mut() {
           let translated = translate_event(officer, event_type);
           if let Err(err) = sender.send(translated) {
             eprintln!("Error sending message: {}", err);
           }
+          // TODO: Is this still needed?
           tokio::task::yield_now().await;
         } else if let rdev::EventType::MouseMove { x, y } = event_type {
           last_position = Some((x, y));
         }
-      }
-      ControlEvent::StartListening => {
+      },
+      UiEvent::ClipboardUpdated(_) => {}
+      UiEvent::RequestTarget(_) => {}
+      UiEvent::Quit => { return Ok(()); }
+      UiEvent::Targetted => {
         if let Some((x, y)) = last_position {
           officer = Some(MouseParoleOfficer::new((x, y)));
           println!("Starting to listen");
@@ -90,14 +94,14 @@ pub async fn forward_events(
           println!("No mouse position found, ignoring listen event");
         }
       }
-      ControlEvent::StopListening => {
-        
-        println!("Stopped Listening");
+      UiEvent::Untargetted => {
+        println!("Stopped forwarding");
         officer = None;
       }
-      ControlEvent::CloseApplication => {
-        return Ok(());
-      }
-    }
+        UiEvent::LocalMouseChanged(_, _) => panic!("Message not expected"),
+        UiEvent::SimulateEvent(_) => panic!("Message not expected"),
+}
   }
+
+  Ok(())
 }

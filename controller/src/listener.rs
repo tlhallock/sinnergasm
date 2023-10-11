@@ -1,15 +1,18 @@
-use crate::events::ControlEvent;
 use rdev;
 use sinnergasm::errors::RDevError;
-use std::sync::mpsc::Sender;
+use ui_common::events::UiEvent;
 
-pub(crate) fn listen_to_keyboard_and_mouse(
-  sender: Sender<ControlEvent>,
+use tokio::sync::mpsc as tokio_mpsc;
+
+
+pub(crate) fn listen_to_system(
+  sender: tokio_mpsc::UnboundedSender<UiEvent>,
 ) -> Result<(), RDevError> {
   rdev::listen(move |event| {
-    let result = sender.send(ControlEvent::RDevEvent(event.event_type));
+    // tokio::task::yield_now().await;
+    let result = sender.send(UiEvent::ControlEvent(event.event_type));
     if let Err(e) = result {
-      eprintln!("Error: {:?}", e);
+      eprintln!("Error sending rdev event: {:?}", e);
     }
   })?;
   Ok(())

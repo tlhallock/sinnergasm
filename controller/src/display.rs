@@ -9,7 +9,6 @@ use druid::WidgetExt;
 use druid::WindowDesc;
 use sinnergasm::protos as msg;
 
-use crate::events::ControlEvent;
 use std::sync::mpsc::Sender;
 
 #[derive(Clone, Data)]
