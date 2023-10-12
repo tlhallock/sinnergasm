@@ -3,11 +3,9 @@ use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 
 use crate::events::UiEvent;
-use tokio::sync::mpsc as tokio_mpsc;
 use cli_clipboard::ClipboardContext;
 use cli_clipboard::ClipboardProvider;
-
-
+use tokio::sync::mpsc as tokio_mpsc;
 
 pub async fn send_target_requests(
   mut receiver: tokio_mpsc::UnboundedReceiver<UiEvent>,
@@ -15,7 +13,8 @@ pub async fn send_target_requests(
   mut client: GrpcClient,
   options: Options,
 ) -> Result<(), anyhow::Error> {
-  let mut ctx = ClipboardContext::new().expect("Unable to create clipboard context");
+  let mut ctx =
+    ClipboardContext::new().expect("Unable to create clipboard context");
 
   while let Some(event) = receiver.recv().await {
     if let UiEvent::RequestTarget(device) = &event {
@@ -25,12 +24,12 @@ pub async fn send_target_requests(
         workspace: options.workspace.clone(),
         device: device.name.clone(),
         clipboard: match ctx.get_contents() {
-         Ok(contents) => Some(contents),
-         Err(err) => {
-           eprintln!("Error getting clipboard contents: {}", err);
-           None
-         }
-       },
+          Ok(contents) => Some(contents),
+          Err(err) => {
+            eprintln!("Error getting clipboard contents: {}", err);
+            None
+          }
+        },
       };
       client.target_device(request).await?;
     }

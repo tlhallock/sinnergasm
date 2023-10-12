@@ -1,9 +1,9 @@
+use cli_clipboard::ClipboardContext;
+use cli_clipboard::ClipboardProvider;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use tokio::sync::mpsc as tokio_mpsc;
-use cli_clipboard::ClipboardContext;
-use cli_clipboard::ClipboardProvider;
 
 use crate::events::UiEvent;
 use crate::target;
@@ -14,7 +14,8 @@ pub async fn subscribe_to_workspace(
   mut client: GrpcClient,
   sender: tokio_mpsc::UnboundedSender<UiEvent>,
 ) -> Result<(), anyhow::Error> {
-  let mut ctx = ClipboardContext::new().expect("Unable to create clipboard context");
+  let mut ctx =
+    ClipboardContext::new().expect("Unable to create clipboard context");
   let subscription_request = msg::WorkspaceSubscriptionRequest {
     workspace: options.workspace.clone(),
     device: options.device.clone(),
@@ -25,12 +26,15 @@ pub async fn subscribe_to_workspace(
     .into_inner();
   while let Some(message) = subscription.message().await? {
     let mut targetted = false;
-    if let Some(msg::workspace_event::EventType::Targetted(
-      msg::Targetted { clipboard },
-    )) = message.clone().event_type {
+    if let Some(msg::workspace_event::EventType::Targetted(msg::Targetted {
+      clipboard,
+    })) = message.clone().event_type
+    {
       println!("Subscription message device targetted: {:?}", clipboard);
       if let Some(clipboard) = clipboard {
-        ctx.set_contents(clipboard).expect("Unable to set clipboard");
+        ctx
+          .set_contents(clipboard)
+          .expect("Unable to set clipboard");
       }
       targetted = true;
     };

@@ -23,7 +23,6 @@ use crate::listener::listen_to_system;
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
-
 fn die_early() {
   panic!("Dying early");
 }
@@ -42,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
   let (target_sender, target_receiver) = tokio_mpsc::unbounded_channel();
 
   let sender_clone = sender.clone();
-  let _ = std::thread::spawn(move || { listen_to_system(sender_clone) });
+  let _ = std::thread::spawn(move || listen_to_system(sender_clone));
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();

@@ -6,12 +6,9 @@ pub enum UiEvent {
   Quit,
   RequestTarget(msg::Device),
 
-
   Targetted,
   Untargetted,
 
-
-  
   // ClipboardUpdated(String),
 
   // Controller events:

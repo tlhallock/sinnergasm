@@ -8,7 +8,10 @@ pub(crate) fn listen_to_system(
   sender: tokio_mpsc::UnboundedSender<UiEvent>,
 ) -> Result<(), RDevError> {
   rdev::listen(move |event| {
-    if matches!(event.event_type, rdev::EventType::KeyPress(rdev::Key::AltGr)) {
+    if matches!(
+      event.event_type,
+      rdev::EventType::KeyPress(rdev::Key::AltGr)
+    ) {
       panic!("Need some escape key: AltGr pressed");
     }
     if let Err(e) = sender.send(UiEvent::ControlEvent(event.event_type)) {
