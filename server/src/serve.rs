@@ -19,7 +19,7 @@ use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspacesServer;
 use tonic_health::ServingStatus;
 
 use crate::workspace_server::WorkspaceServer;
-use std::fs;
+
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   };
 
-  let (mut health_reporter, health_service) =
+  let (mut health_reporter, _health_service) =
     tonic_health::server::health_reporter();
   health_reporter
     .set_service_status(

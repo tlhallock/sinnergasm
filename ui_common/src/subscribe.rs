@@ -6,8 +6,7 @@ use sinnergasm::protos as msg;
 use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::events::UiEvent;
-use crate::target;
-use anyhow;
+
 
 pub async fn subscribe_to_workspace(
   options: Options,

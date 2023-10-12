@@ -35,16 +35,16 @@ fn translate_event(
   msg::ControlRequest {
     input_event: Some(msg::UserInputEvent {
       r#type: Some(match event {
-        rdev::EventType::KeyPress(key) => {
+        rdev::EventType::KeyPress(_key) => {
           msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
         }
-        rdev::EventType::KeyRelease(key) => {
+        rdev::EventType::KeyRelease(_key) => {
           msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
         }
-        rdev::EventType::ButtonPress(button) => {
+        rdev::EventType::ButtonPress(_button) => {
           msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
         }
-        rdev::EventType::ButtonRelease(button) => {
+        rdev::EventType::ButtonRelease(_button) => {
           msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
         }
         rdev::EventType::MouseMove { x, y } => {
