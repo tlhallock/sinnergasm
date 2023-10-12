@@ -1,18 +1,19 @@
+use sinnergasm::{
+  errors::RDevError, grpc_client::GrpcClient, options::Options,
+};
 
-
-use sinnergasm::{errors::RDevError, options::Options, grpc_client::GrpcClient};
-
+use sinnergasm::protos as msg;
 use tokio::sync::mpsc as tokio_mpsc;
 use ui_common::events::UiEvent;
-use sinnergasm::protos as msg;
-
 
 pub(crate) fn listen_to_system(
   sender: tokio_mpsc::UnboundedSender<UiEvent>,
 ) -> Result<(), RDevError> {
   rdev::listen(move |event| {
     if let rdev::EventType::MouseMove { x, y } = event.event_type {
-      sender.send(UiEvent::LocalMouseChanged(x, y)).expect("Unable to send mouse event");
+      sender
+        .send(UiEvent::LocalMouseChanged(x, y))
+        .expect("Unable to send mouse event");
     }
   })?;
   Ok(())

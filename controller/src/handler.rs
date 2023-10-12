@@ -1,9 +1,9 @@
 use crate::prison::MouseParoleOfficer;
+use anyhow;
 use rdev;
 use sinnergasm::protos as msg;
-use ui_common::events::UiEvent;
 use tokio::sync::mpsc as tokio_mpsc;
-use anyhow;
+use ui_common::events::UiEvent;
 
 // fn handle_rdev(event_type: rdev::EventType) {
 //   match event_type {
@@ -77,15 +77,17 @@ pub async fn handle_events(
           if let Err(err) = sender.send(translated) {
             eprintln!("Error sending message: {}", err);
           }
-          // TODO: Is this still needed?
-          tokio::task::yield_now().await;
+          // // TODO: Is this still needed?
+          // tokio::task::yield_now().await;
         } else if let rdev::EventType::MouseMove { x, y } = event_type {
           last_position = Some((x, y));
         }
-      },
-      UiEvent::ClipboardUpdated(_) => {}
+      }
+      // UiEvent::ClipboardUpdated(_) => {}
       UiEvent::RequestTarget(_) => {}
-      UiEvent::Quit => { return Ok(()); }
+      UiEvent::Quit => {
+        return Ok(());
+      }
       UiEvent::Targetted => {
         if let Some((x, y)) = last_position {
           officer = Some(MouseParoleOfficer::new((x, y)));
@@ -98,9 +100,9 @@ pub async fn handle_events(
         println!("Stopped forwarding");
         officer = None;
       }
-        UiEvent::LocalMouseChanged(_, _) => panic!("Message not expected"),
-        UiEvent::SimulateEvent(_) => panic!("Message not expected"),
-}
+      UiEvent::LocalMouseChanged(_, _) => panic!("Message not expected"),
+      UiEvent::SimulateEvent(_) => panic!("Message not expected"),
+    }
   }
 
   Ok(())

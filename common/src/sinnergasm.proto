@@ -109,7 +109,7 @@ message ConfiguredResponse {
 message TargetRequest {
   string workspace = 1;
   string device = 3;
-  string clipboard = 4;
+  optional string clipboard = 4;
 }
 
 message TargetResponse {
@@ -173,10 +173,15 @@ message WorkspaceSubscriptionRequest {
 message WorkspaceEvent {
   oneof event_type {
     ConfigurationUpdate configuration_update = 1;
-    TargetUpdate target_update = 2;
-    DeviceConnected device_connected = 3;
-    DeviceDisconnected device_disconnected = 4;
+    Targetted targetted = 2;
+    TargetUpdate target_update = 3;
+    DeviceConnected device_connected = 4;
+    DeviceDisconnected device_disconnected = 5;
   }
+}
+
+message Targetted {
+  optional string clipboard = 2;
 }
 
 message TargetUpdate {

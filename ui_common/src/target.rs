@@ -1,10 +1,13 @@
-
+use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
-use sinnergasm::grpc_client::GrpcClient;
 
 use crate::events::UiEvent;
 use tokio::sync::mpsc as tokio_mpsc;
+use cli_clipboard::ClipboardContext;
+use cli_clipboard::ClipboardProvider;
+
+
 
 pub async fn send_target_requests(
   mut receiver: tokio_mpsc::UnboundedReceiver<UiEvent>,
@@ -12,19 +15,27 @@ pub async fn send_target_requests(
   mut client: GrpcClient,
   options: Options,
 ) -> Result<(), anyhow::Error> {
-  let mut clipboard: String = "".into();
+  let mut ctx = ClipboardContext::new().expect("Unable to create clipboard context");
+
   while let Some(event) = receiver.recv().await {
-    if let UiEvent::ClipboardUpdated(new_clipboard) = &event {
-      clipboard = new_clipboard.clone();
-    } else if let UiEvent::RequestTarget(device) = &event {
+    if let UiEvent::RequestTarget(device) = &event {
+      println!("Requesting target: {}", device.name);
+
       let request = msg::TargetRequest {
         workspace: options.workspace.clone(),
         device: device.name.clone(),
-        clipboard: clipboard.clone(),
+        clipboard: match ctx.get_contents() {
+         Ok(contents) => Some(contents),
+         Err(err) => {
+           eprintln!("Error getting clipboard contents: {}", err);
+           None
+         }
+       },
       };
       client.target_device(request).await?;
     }
     sender.send(event)?;
   }
+  println!("Target task finished");
   Ok(())
 }

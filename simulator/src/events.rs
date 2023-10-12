@@ -1,7 +1,5 @@
-
 // use sinnergasm::protos as msg;
 // use ui_common::events::UiEvent;
-
 
 // pub(crate) enum SimulatorEvent {
 //   UiEvent(UiEvent),

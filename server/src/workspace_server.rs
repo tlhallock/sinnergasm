@@ -161,13 +161,35 @@ impl VirtualWorkspaces for WorkspaceServer {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
-    if let Err(err) = self
-      .simulation_sender
-      .send(SimulationEvent::TargetEvent(workspace_name, device_name))
-    {
+    if let Err(err) = self.simulation_sender.send(SimulationEvent::TargetEvent(
+      workspace_name.clone(),
+      device_name.clone(),
+    )) {
       println!("Failed to send listener removed event: {:?}", err);
       return Err(tonic::Status::from_error(Box::new(err)));
     }
+
+    if let Err(err) =
+      self
+        .workspace_sender
+        .send(SubscriptionEvent::WorkspaceEvent(
+          workspace_name,
+          msg::WorkspaceEvent {
+            event_type: Some(msg::workspace_event::EventType::TargetUpdate(
+              msg::TargetUpdate {
+                device: device_name,
+              },
+            )),
+          },
+        ))
+    {
+      println!(
+        "Failed to notify listeners of target update event: {:?}",
+        err
+      );
+      return Err(tonic::Status::from_error(Box::new(err)));
+    }
+
     return Ok(tonic::Response::new(msg::TargetResponse {}));
   }
 

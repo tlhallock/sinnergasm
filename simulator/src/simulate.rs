@@ -1,4 +1,3 @@
-
 // pub mod display;
 pub mod events;
 pub mod handler;
@@ -8,14 +7,14 @@ use tokio::sync::mpsc as tokio_mpsc;
 use ui_common::subscribe::subscribe_to_workspace;
 
 use anyhow;
+use sinnergasm::grpc_client::create_client;
 use sinnergasm::options::Options;
 use ui_common::device_display::display_devices;
 use ui_common::target::send_target_requests;
-use sinnergasm::grpc_client::create_client;
 
 use crate::handler::simulate_receiver;
-use crate::listener::listen_to_system;
 use crate::listener::listen_to_client;
+use crate::listener::listen_to_system;
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -24,10 +23,14 @@ use crate::listener::listen_to_client;
 // .timeout(Duration::from_secs(5))
 // .rate_limit(5, Duration::from_secs(1))
 
+
+fn die_early() {
+  panic!("Dying early");
+}
+
 fn print_type_of<T>(_: &T) {
   println!("{}", std::any::type_name::<T>());
 }
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -39,15 +42,13 @@ async fn main() -> anyhow::Result<()> {
   let (target_sender, target_receiver) = tokio_mpsc::unbounded_channel();
 
   let sender_clone = sender.clone();
+  let _ = std::thread::spawn(move || { listen_to_system(sender_clone) });
+
+  let sender_clone = sender.clone();
   let client_clone = client.clone();
   let options_clone = options.clone();
   let subscribe_task = tokio::task::spawn(async move {
     subscribe_to_workspace(options_clone, client_clone, sender_clone).await
-  });
-
-  let sender_clone = sender.clone();
-  let _ = tokio::task::spawn(async move {
-    listen_to_system(sender_clone)
   });
 
   let sender_clone = sender.clone();
@@ -61,7 +62,8 @@ async fn main() -> anyhow::Result<()> {
   let client_clone = client.clone();
   let options_clone = options.clone();
   let target_task = tokio::task::spawn(async move {
-    send_target_requests(receiver, target_sender, client_clone, options_clone).await;
+    send_target_requests(receiver, target_sender, client_clone, options_clone)
+      .await?;
     Ok(())
   });
 
@@ -73,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
   display_devices(client, &options, sender).await?;
 
   // TODO: figure out how to gracefully close the connections...
-  panic!("Display closed");
+  die_early();
 
   let futures = vec![subscribe_task, relay_task, target_task, simulate_task];
   futures::future::join_all(futures).await;

@@ -1,15 +1,18 @@
-
-
-use sinnergasm::protos as msg;
 use rdev;
+use sinnergasm::protos as msg;
 
 #[derive(Debug)]
 pub enum UiEvent {
   Quit,
   RequestTarget(msg::Device),
+
+
   Targetted,
   Untargetted,
-  ClipboardUpdated(String),
+
+
+  
+  // ClipboardUpdated(String),
 
   // Controller events:
   ControlEvent(rdev::EventType),

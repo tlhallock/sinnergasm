@@ -2,8 +2,8 @@
 //     include!(concat!(env!("OUT_DIR"), "/sinnergasm.rs"));
 // }
 
-pub mod options;
 pub mod grpc_client;
+pub mod options;
 
 #[cfg(feature = "use-rdev")]
 pub mod errors;
