@@ -12,14 +12,13 @@ fn simulate_input_event(
   event: msg::user_input_event::Type,
 ) -> Result<(), rdev::SimulateError> {
   match event {
-    println!("Old mouse position: {}, {}", mouse_x, mouse_y);
     msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent {
       delta_x,
       delta_y,
-    }) => simulate(&rdev::EventType::MouseMove {
+    }) => { println!("Old mouse position: {}, {}", mouse_x, mouse_y); simulate(&rdev::EventType::MouseMove {
       x: mouse_x + delta_x,
       y: mouse_y + delta_y,
-    }),
+    }) },
     msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}) => {
       Ok(())
     }
