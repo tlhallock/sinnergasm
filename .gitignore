@@ -13,3 +13,4 @@ container/token.txt
 infra/.terraform/providers/registry.terraform.io/hashicorp/null/3.2.1/linux_amd64
 infra/sinnergy-sources.zip
 sinnergy-sources.zip
+Cargo.lock
