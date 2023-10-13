@@ -9,6 +9,7 @@ pub mod prison;
 
 use core::panic;
 
+use crate::handler::configure_control_stream;
 use crate::handler::handle_events;
 use crate::listener::listen_to_system;
 use anyhow;
@@ -45,6 +46,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Control workspace finished");
     anyhow::Ok(())
   });
+  configure_control_stream(&control_sender, &options)?;
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();
@@ -67,10 +69,6 @@ async fn main() -> anyhow::Result<()> {
     listen_to_system(sender_clone)?;
     anyhow::Ok(())
   });
-
-  sender.send(UiEvent::Targetted)?;
-  sender.send(UiEvent::Targetted)?;
-  sender.send(UiEvent::Targetted)?;
 
   let forward_task = tokio::task::spawn(async move {
     handle_events(target_receiver, control_sender).await?;

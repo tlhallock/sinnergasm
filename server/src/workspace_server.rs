@@ -1,12 +1,12 @@
 use futures::stream::StreamExt;
 use tokio::sync::mpsc;
 
-use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
+use sinnergasm::protos::{self as msg, ControlRequest};
 use tonic::Status;
 // use sinnergasm::UserInputEvent;
 use crate::actors::simulate::SimulationEvent;
-use crate::actors::workspace::SubscriptionEvent;
+use crate::actors::workspace::{self, SubscriptionEvent};
 use crate::events;
 use std::pin::Pin;
 
@@ -246,27 +246,43 @@ impl VirtualWorkspaces for WorkspaceServer {
   {
     tracing::info!("Control workspace request");
     let mut stream = request.into_inner();
-    while let Some(req) = stream.next().await {
-      if let Some(input_event) = req
-        .map_err(|e| {
-          println!("Error: {:?}", e);
-          tonic::Status::aborted(e.to_string())
-        })?
-        .input_event
-      {
-        self
-          .simulation_sender
-          .send(SimulationEvent::SimulationEvent(
-            self.the_workspace.name.clone(),
-            msg::SimulationEvent {
-              input_event: Some(input_event.clone()),
-            },
-          ))
-          .map_err(|e| tonic::Status::aborted(e.to_string()))?;
+
+    if let Some(Ok(msg::ControlRequest {
+      event_type:
+        Some(msg::control_request::EventType::Workspace(msg::ControlWorkspace {
+          workspace,
+          device,
+        })),
+    })) = stream.next().await
+    {
+      println!("Device {} will control workspace {}", device, workspace);
+      while let Some(req) = stream.next().await {
+        if let Ok(msg::ControlRequest {
+          event_type:
+            Some(msg::control_request::EventType::InputEvent(input_event)),
+        }) = req
+        {
+          self
+            .simulation_sender
+            .send(SimulationEvent::SimulationEvent(
+              self.the_workspace.name.clone(),
+              msg::SimulationEvent {
+                input_event: Some(input_event.clone()),
+              },
+            ))
+            .map_err(|e| tonic::Status::aborted(e.to_string()))?;
+        } else {
+          return Err(tonic::Status::aborted("Invalid control message"));
+        }
       }
+      println!("Done with control workspace request");
+      Ok(tonic::Response::new(msg::ControlResponse {}))
+    } else {
+      return Err(tonic::Status::aborted("No messages in control stream"));
+
+      //   "The first control message must be which workspace to control"
+      // ));
     }
-    println!("Done with control workspace request");
-    Ok(tonic::Response::new(msg::ControlResponse {}))
   }
 
   async fn simulate_workspace(
@@ -282,7 +298,10 @@ impl VirtualWorkspaces for WorkspaceServer {
     let device_name = request.device;
     let (sender, receiver) = mpsc::unbounded_channel::<msg::SimulationEvent>();
 
-    println!("Got simulate workspace request");
+    println!(
+      "Adding device {} as a simulator for {}.",
+      device_name, workspace_name
+    );
 
     if let Err(err) = self.simulation_sender.send(
       SimulationEvent::AddSimulator(workspace_name, device_name, sender),
@@ -308,6 +327,11 @@ impl VirtualWorkspaces for WorkspaceServer {
     let workspace_name = request.workspace;
     let device_name = request.device;
     let (sender, receiver) = mpsc::unbounded_channel::<msg::WorkspaceEvent>();
+
+    println!(
+      "Adding device {} as a listener for {}.",
+      device_name, workspace_name
+    );
 
     if let Err(err) = self.workspace_sender.send(SubscriptionEvent::Subscribe(
       workspace_name,

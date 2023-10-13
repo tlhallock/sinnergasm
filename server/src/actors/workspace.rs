@@ -51,17 +51,15 @@ impl WorkspaceActor {
       SubscriptionEvent::WorkspaceEvent(workspace_name, event) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some(msg::workspace_event::EventType::TargetUpdate(
-            msg::TargetUpdate { device }
-          )) = event.clone().event_type {
+            msg::TargetUpdate { device },
+          )) = event.clone().event_type
+          {
             if let Some(device_sender) = device_map.get_mut(&device) {
-              if let Err(err) = device_sender.send(
-                msg::WorkspaceEvent {
-                  event_type: Some(msg::workspace_event::EventType::Targetted(
-                    msg::Targetted {
-                      clipboard: None,
-                    },
-                  )),
-                }) {
+              if let Err(err) = device_sender.send(msg::WorkspaceEvent {
+                event_type: Some(msg::workspace_event::EventType::Targetted(
+                  msg::Targetted { clipboard: None },
+                )),
+              }) {
                 println!("Failed to send event to listener: {:?}", err);
               }
             } else {
@@ -76,7 +74,10 @@ impl WorkspaceActor {
             return true;
           });
         } else {
-          println!("No listeners for workspace: {:?}", workspace_name);
+          println!(
+            "No workspace listeners for workspace: {:?}",
+            workspace_name
+          );
         }
       }
       SubscriptionEvent::ApplicationClosing => {

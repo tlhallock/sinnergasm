@@ -1,64 +1,66 @@
 use crate::prison::MouseParoleOfficer;
 use anyhow;
 use rdev;
+use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use tokio::sync::mpsc as tokio_mpsc;
 use ui_common::events::UiEvent;
 
-// fn handle_rdev(event_type: rdev::EventType) {
-//   match event_type {
-//     rdev::EventType::KeyPress(key) => {
-//       println!("Key Pressed: {:?}", key);
-//     }
-//     rdev::EventType::KeyRelease(key) => {
-//       println!("Key Released: {:?}", key);
-//     }
-//     rdev::EventType::ButtonPress(button) => {
-//       println!("Mouse Button Pressed: {:?}", button);
-//     }
-//     rdev::EventType::ButtonRelease(button) => {
-//       println!("Mouse Button Released: {:?}", button);
-//     }
-//     rdev::EventType::MouseMove { x, y } => {
-//       println!("Mouse Moved to: x = {}, y = {}", x, y);
-//     }
-//     rdev::EventType::Wheel { delta_x, delta_y } => {
-//       println!("Mouse wheel {} {}", delta_x, delta_y);
-//     }
-//   }
-// }
+pub(crate) fn configure_control_stream(
+  control_sender: &tokio_mpsc::UnboundedSender<msg::ControlRequest>,
+  options: &Options,
+) -> Result<(), anyhow::Error> {
+  control_sender.send(msg::ControlRequest {
+    event_type: Some(msg::control_request::EventType::Workspace(
+      msg::ControlWorkspace {
+        workspace: options.workspace.clone(),
+        device: options.device.clone(),
+      },
+    )),
+  })?;
+  Ok(())
+}
+
+fn translate_input_event(
+  officer: &mut MouseParoleOfficer,
+  event: rdev::EventType,
+) -> msg::user_input_event::Type {
+  match event {
+    rdev::EventType::KeyPress(_key) => {
+      msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
+    }
+    rdev::EventType::KeyRelease(_key) => {
+      msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
+    }
+    rdev::EventType::ButtonPress(_button) => {
+      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
+    }
+    rdev::EventType::ButtonRelease(_button) => {
+      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
+    }
+    rdev::EventType::MouseMove { x, y } => {
+      let msg = officer.patch((x, y));
+      msg::user_input_event::Type::MouseMove(msg)
+    }
+    rdev::EventType::Wheel { delta_x, delta_y } => {
+      msg::user_input_event::Type::Wheel(msg::WheelEvent {
+        dx: delta_x as i32,
+        dy: delta_y as i32,
+      })
+    }
+  }
+}
 
 fn translate_event(
   officer: &mut MouseParoleOfficer,
   event: rdev::EventType,
 ) -> msg::ControlRequest {
   msg::ControlRequest {
-    input_event: Some(msg::UserInputEvent {
-      r#type: Some(match event {
-        rdev::EventType::KeyPress(_key) => {
-          msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
-        }
-        rdev::EventType::KeyRelease(_key) => {
-          msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
-        }
-        rdev::EventType::ButtonPress(_button) => {
-          msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
-        }
-        rdev::EventType::ButtonRelease(_button) => {
-          msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
-        }
-        rdev::EventType::MouseMove { x, y } => {
-          let msg = officer.patch((x, y));
-          msg::user_input_event::Type::MouseMove(msg)
-        }
-        rdev::EventType::Wheel { delta_x, delta_y } => {
-          msg::user_input_event::Type::Wheel(msg::WheelEvent {
-            dx: delta_x as i32,
-            dy: delta_y as i32,
-          })
-        }
-      }),
-    }),
+    event_type: Some(msg::control_request::EventType::InputEvent(
+      msg::UserInputEvent {
+        r#type: Some(translate_input_event(officer, event)),
+      },
+    )),
   }
 }
 

@@ -148,11 +148,20 @@ message LeaveResponse {
 //////////////////////
 
 message ControlRequest {
-  // TODO: oneof where one is an
-  UserInputEvent input_event = 1;
+  oneof event_type {
+    UserInputEvent input_event = 1;
+    ControlWorkspace workspace = 2;
+  }
+}
+
+message ControlWorkspace {
+  string workspace = 1;
+  // TODO: this should be determined
+  string device = 2;
 }
 
 message ControlResponse {
+
 
 }
 

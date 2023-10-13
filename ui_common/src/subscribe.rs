@@ -7,7 +7,6 @@ use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::events::UiEvent;
 
-
 pub async fn subscribe_to_workspace(
   options: Options,
   mut client: GrpcClient,
@@ -24,13 +23,15 @@ pub async fn subscribe_to_workspace(
     .await?
     .into_inner();
   while let Some(message) = subscription.message().await? {
-
     let mut targetted = None;
     if let Some(msg::workspace_event::EventType::Targetted(msg::Targetted {
       clipboard,
     })) = message.clone().event_type
     {
-      println!("Subscription message device targetted: clipboard = {:?}", clipboard);
+      println!(
+        "Subscription message device targetted: clipboard = {:?}",
+        clipboard
+      );
       if let Some(clipboard) = clipboard {
         ctx
           .set_contents(clipboard)
@@ -55,7 +56,11 @@ pub async fn subscribe_to_workspace(
 
     if let Some(targetted) = targetted {
       sender
-        .send(if targetted { UiEvent::Targetted } else { UiEvent::Untargetted })
+        .send(if targetted {
+          UiEvent::Targetted
+        } else {
+          UiEvent::Untargetted
+        })
         .expect("Unable to send targetted event");
     }
   }
