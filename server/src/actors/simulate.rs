@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::{Debug, Formatter};
 
 use crate::common as ids;
 use sinnergasm::protos as msg;
@@ -16,7 +17,7 @@ pub(crate) enum SimulationEvent {
   ApplicationClosing,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct DeviceMap {
   target: Option<(
     String,
@@ -26,6 +27,15 @@ struct DeviceMap {
     ids::DeviceName,
     tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
   >,
+}
+
+impl Debug for DeviceMap {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("DeviceMap")
+      .field("target", &self.target.as_ref().map(|(name, _)| name))
+      .field("devices", &self.devices.keys())
+      .finish()
+  }
 }
 
 #[derive(Debug, Default)]
@@ -41,12 +51,8 @@ impl SimulationActor {
           .listeners
           .entry(workspace_name)
           .or_insert_with(DeviceMap::default);
-
-        // just use the last one until we implement the target message
-        device_map.target = Some((device_name.clone(), sender.clone()));
-
+        // device_map.target = Some((device_name.clone(), sender.clone()));
         device_map.devices.insert(device_name, sender);
-
         println!("Added simulator for workspace");
       }
       SimulationEvent::RemoveSimulator(workspace_name, device_name) => {
@@ -81,7 +87,8 @@ impl SimulationActor {
             println!("No target for workspace");
           }
         } else {
-          println!("No simulation listeners for workspace");
+          println!("No simulation listeners for workspace: {} {:?}", workspace_name, self);
+
         }
       }
       SimulationEvent::WorkspaceClosing(workspace_name) => {

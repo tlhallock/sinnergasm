@@ -30,7 +30,7 @@ impl Options {
     Self {
       base_url: format!("http://{}:{}", HOST, PORT).into(),
       token: read_token(),
-      workspace: "the workspace".into(),
+      workspace: "The Workspace".into(),
       device,
       timeout: 5,
       concurrency_limit: 256,

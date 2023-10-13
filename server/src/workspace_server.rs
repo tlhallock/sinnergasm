@@ -2,11 +2,10 @@ use futures::stream::StreamExt;
 use tokio::sync::mpsc;
 
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
-use sinnergasm::protos::{self as msg, ControlRequest};
+use sinnergasm::protos as msg;
 use tonic::Status;
-// use sinnergasm::UserInputEvent;
 use crate::actors::simulate::SimulationEvent;
-use crate::actors::workspace::{self, SubscriptionEvent};
+use crate::actors::workspace::SubscriptionEvent;
 use crate::events;
 use std::pin::Pin;
 
@@ -121,14 +120,16 @@ impl VirtualWorkspaces for WorkspaceServer {
     _request: tonic::Request<msg::ListRequest>,
   ) -> std::result::Result<tonic::Response<msg::WorkspaceList>, tonic::Status>
   {
-    tracing::info!("List workspace request");
+    tracing::info!("Listing workspaces");
     Err(tonic::Status::internal("Not implemented"))
   }
 
   async fn get_workspace(
     &self,
-    _request: tonic::Request<msg::GetRequest>,
+    request: tonic::Request<msg::GetRequest>,
   ) -> std::result::Result<tonic::Response<msg::Workspace>, tonic::Status> {
+    let request = request.into_inner();
+    tracing::info!("Getting workspace {}", request.name);
     Ok(tonic::Response::new(self.the_workspace.clone()))
   }
 
@@ -139,7 +140,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<msg::ConfiguredResponse>,
     tonic::Status,
   > {
-    tracing::info!("Configure workspace request");
+    tracing::info!("Configuring workspace {}", "implement me");
     Err(tonic::Status::internal("Not implemented"))
   }
 
@@ -157,10 +158,10 @@ impl VirtualWorkspaces for WorkspaceServer {
     request: tonic::Request<msg::TargetRequest>,
   ) -> std::result::Result<tonic::Response<msg::TargetResponse>, tonic::Status>
   {
-    tracing::info!("Target device request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
+    tracing::info!("Workspace {} will now target {}", workspace_name, device_name);
     if let Err(err) = self.simulation_sender.send(SimulationEvent::TargetEvent(
       workspace_name.clone(),
       device_name.clone(),
@@ -244,7 +245,6 @@ impl VirtualWorkspaces for WorkspaceServer {
     request: tonic::Request<tonic::Streaming<msg::ControlRequest>>,
   ) -> std::result::Result<tonic::Response<msg::ControlResponse>, tonic::Status>
   {
-    tracing::info!("Control workspace request");
     let mut stream = request.into_inner();
 
     if let Some(Ok(msg::ControlRequest {
@@ -272,6 +272,7 @@ impl VirtualWorkspaces for WorkspaceServer {
             ))
             .map_err(|e| tonic::Status::aborted(e.to_string()))?;
         } else {
+          tracing::info!("Invalid control message");
           return Err(tonic::Status::aborted("Invalid control message"));
         }
       }
@@ -292,7 +293,6 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<Self::SimulateWorkspaceStream>,
     tonic::Status,
   > {
-    tracing::info!("Simulate workspace request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
@@ -322,7 +322,6 @@ impl VirtualWorkspaces for WorkspaceServer {
     tonic::Response<Self::SubscribeToWorkspaceStream>,
     tonic::Status,
   > {
-    tracing::info!("Subscribe to workspace request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
