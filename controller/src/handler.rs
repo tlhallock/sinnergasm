@@ -89,16 +89,16 @@ pub async fn handle_events(
         return Ok(());
       }
       UiEvent::Targetted => {
+        println!("Stopped forwarding");
+        officer = None;
+      }
+      UiEvent::Untargetted => {
         if let Some((x, y)) = last_position {
           officer = Some(MouseParoleOfficer::new((x, y)));
           println!("Starting to listen");
         } else {
           println!("No mouse position found, ignoring listen event");
         }
-      }
-      UiEvent::Untargetted => {
-        println!("Stopped forwarding");
-        officer = None;
       }
       UiEvent::LocalMouseChanged(_, _) => panic!("Message not expected"),
       UiEvent::SimulateEvent(_) => panic!("Message not expected"),

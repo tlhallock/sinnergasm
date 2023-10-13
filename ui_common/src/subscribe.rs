@@ -24,18 +24,19 @@ pub async fn subscribe_to_workspace(
     .await?
     .into_inner();
   while let Some(message) = subscription.message().await? {
-    let mut targetted = false;
+
+    let mut targetted = None;
     if let Some(msg::workspace_event::EventType::Targetted(msg::Targetted {
       clipboard,
     })) = message.clone().event_type
     {
-      println!("Subscription message device targetted: {:?}", clipboard);
+      println!("Subscription message device targetted: clipboard = {:?}", clipboard);
       if let Some(clipboard) = clipboard {
         ctx
           .set_contents(clipboard)
           .expect("Unable to set clipboard");
       }
-      targetted = true;
+      targetted = Some(true);
     };
 
     // TODO: remove this when targetted is implemented
@@ -46,15 +47,15 @@ pub async fn subscribe_to_workspace(
     )) = message.event_type
     {
       println!(
-        "Subscription message device targetted: {}",
+        "Subscription message device target update: {}",
         targetted_device
       );
-      targetted = targetted_device == *options.device;
+      targetted = Some(targetted_device == *options.device);
     }
 
-    if targetted {
+    if let Some(targetted) = targetted {
       sender
-        .send(UiEvent::Targetted)
+        .send(if targetted { UiEvent::Targetted } else { UiEvent::Untargetted })
         .expect("Unable to send targetted event");
     }
   }
