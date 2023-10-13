@@ -80,14 +80,12 @@ impl SimulationActor {
           if let Some((_, sender)) = device_map.target.as_ref() {
             if let Err(err) = sender.send(event.clone()) {
               println!("Failed to send event to listener: {:?}", err);
-            } else {
-              println!("Sent event to listener");
             }
           } else {
             println!("No target for workspace");
           }
         } else {
-          println!("No simulation listeners for workspace: {} {:?}", workspace_name, self);
+          println!("No simulation listeners for workspace: {}", workspace_name);
 
         }
       }

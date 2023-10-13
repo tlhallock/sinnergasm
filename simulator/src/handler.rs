@@ -12,6 +12,7 @@ fn simulate_input_event(
   event: msg::user_input_event::Type,
 ) -> Result<(), rdev::SimulateError> {
   match event {
+    println!("Old mouse position: {}, {}", mouse_x, mouse_y);
     msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent {
       delta_x,
       delta_y,
@@ -43,11 +44,9 @@ pub(crate) async fn simulate_receiver(
       }
       UiEvent::SimulateEvent(event) => {
         if let Some((mouse_x, mouse_y)) = current_mouse_position {
-          if let Some(event) = event.input_event {
-            if let Some(event) = event.r#type {
-              // Fail on first error?
-              simulate_input_event((mouse_x, mouse_y), event)?
-            }
+          if let Some(msg::UserInputEvent { r#type: Some(event)}) = event.input_event {
+            // Fail on first error?
+            simulate_input_event((mouse_x, mouse_y), event)?
           }
         } else {
           println!("No mouse event yet, we do not know the current location of the mouse.");
