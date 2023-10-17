@@ -1,13 +1,13 @@
 use futures::stream::StreamExt;
 use tokio::sync::mpsc;
 
-use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
-use sinnergasm::protos as msg;
-use tonic::Status;
 use crate::actors::simulate::SimulationEvent;
 use crate::actors::workspace::SubscriptionEvent;
 use crate::events;
+use sinnergasm::protos as msg;
+use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
 use std::pin::Pin;
+use tonic::Status;
 
 type SimulationSender = tokio::sync::mpsc::UnboundedSender<SimulationEvent>;
 type WorkspaceSender = tokio::sync::mpsc::UnboundedSender<SubscriptionEvent>;
@@ -161,7 +161,11 @@ impl VirtualWorkspaces for WorkspaceServer {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
-    tracing::info!("Workspace {} will now target {}", workspace_name, device_name);
+    tracing::info!(
+      "Workspace {} will now target {}",
+      workspace_name,
+      device_name
+    );
     if let Err(err) = self.simulation_sender.send(SimulationEvent::TargetEvent(
       workspace_name.clone(),
       device_name.clone(),

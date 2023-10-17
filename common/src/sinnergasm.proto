@@ -237,6 +237,8 @@ message UserInputEvent {
 }
 
 message MouseMoveEvent {
+  // double offset_x = 1;
+  // double offset_y = 2;
   double delta_x = 1;
   double delta_y = 2;
 }

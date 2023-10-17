@@ -86,7 +86,6 @@ impl SimulationActor {
           }
         } else {
           println!("No simulation listeners for workspace: {}", workspace_name);
-
         }
       }
       SimulationEvent::WorkspaceClosing(workspace_name) => {

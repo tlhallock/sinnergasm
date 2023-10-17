@@ -24,29 +24,28 @@ pub(crate) fn configure_control_stream(
 fn translate_input_event(
   officer: &mut MouseParoleOfficer,
   event: rdev::EventType,
-) -> msg::user_input_event::Type {
+) -> Option<msg::user_input_event::Type> {
   match event {
     rdev::EventType::KeyPress(_key) => {
-      msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
+      Some(msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {}))
     }
     rdev::EventType::KeyRelease(_key) => {
-      msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {})
+      Some(msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {}))
     }
-    rdev::EventType::ButtonPress(_button) => {
-      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
-    }
-    rdev::EventType::ButtonRelease(_button) => {
-      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {})
-    }
-    rdev::EventType::MouseMove { x, y } => {
-      let msg = officer.patch((x, y));
-      msg::user_input_event::Type::MouseMove(msg)
-    }
+    rdev::EventType::ButtonPress(_button) => Some(
+      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}),
+    ),
+    rdev::EventType::ButtonRelease(_button) => Some(
+      msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}),
+    ),
+    rdev::EventType::MouseMove { x, y } => officer
+      .patch((x, y))
+      .map(|msg| msg::user_input_event::Type::MouseMove(msg)),
     rdev::EventType::Wheel { delta_x, delta_y } => {
-      msg::user_input_event::Type::Wheel(msg::WheelEvent {
+      Some(msg::user_input_event::Type::Wheel(msg::WheelEvent {
         dx: delta_x as i32,
         dy: delta_y as i32,
-      })
+      }))
     }
   }
 }
@@ -54,14 +53,14 @@ fn translate_input_event(
 fn translate_event(
   officer: &mut MouseParoleOfficer,
   event: rdev::EventType,
-) -> msg::ControlRequest {
-  msg::ControlRequest {
+) -> Option<msg::ControlRequest> {
+  translate_input_event(officer, event).map(|event_type| msg::ControlRequest {
     event_type: Some(msg::control_request::EventType::InputEvent(
       msg::UserInputEvent {
-        r#type: Some(translate_input_event(officer, event)),
+        r#type: Some(event_type),
       },
     )),
-  }
+  })
 }
 
 pub async fn handle_events(
@@ -75,9 +74,10 @@ pub async fn handle_events(
     match event {
       UiEvent::ControlEvent(event_type) => {
         if let Some(officer) = officer.as_mut() {
-          let translated = translate_event(officer, event_type);
-          if let Err(err) = sender.send(translated) {
-            eprintln!("Error sending message: {}", err);
+          if let Some(translated) = translate_event(officer, event_type) {
+            if let Err(err) = sender.send(translated) {
+              eprintln!("Error sending message: {}", err);
+            }
           }
           // // TODO: Is this still needed?
           // tokio::task::yield_now().await;
