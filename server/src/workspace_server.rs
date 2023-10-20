@@ -21,10 +21,7 @@ pub(crate) struct WorkspaceServer {
 }
 
 impl WorkspaceServer {
-  pub(crate) fn new(
-    workspace_sender: WorkspaceSender,
-    simulation_sender: SimulationSender,
-  ) -> Self {
+  pub(crate) fn new(workspace_sender: WorkspaceSender, simulation_sender: SimulationSender) -> Self {
     Self {
       workspace_sender,
       simulation_sender,
@@ -73,44 +70,28 @@ impl WorkspaceServer {
   }
 }
 
-fn map_transition(
-  event: events::WorkspaceSubscriptionEvent,
-) -> Result<msg::WorkspaceEvent, Status> {
+fn map_transition(event: events::WorkspaceSubscriptionEvent) -> Result<msg::WorkspaceEvent, Status> {
   match event {
-    events::WorkspaceSubscriptionEvent::SetTarget(_, _) => {
-      Ok(msg::WorkspaceEvent {
-        event_type: Some(msg::workspace_event::EventType::TargetUpdate(
-          msg::TargetUpdate { device: "".into() },
-        )),
-      })
-    }
+    events::WorkspaceSubscriptionEvent::SetTarget(_, _) => Ok(msg::WorkspaceEvent {
+      event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
+        device: "".into(),
+      })),
+    }),
   }
 }
 
 #[tonic::async_trait]
 impl VirtualWorkspaces for WorkspaceServer {
-  type SubscribeToWorkspaceStream = Pin<
-    Box<
-      dyn futures_core::Stream<
-          Item = std::result::Result<msg::WorkspaceEvent, tonic::Status>,
-        > + Send
-        + 'static,
-    >,
-  >;
+  type SubscribeToWorkspaceStream =
+    Pin<Box<dyn futures_core::Stream<Item = std::result::Result<msg::WorkspaceEvent, tonic::Status>> + Send + 'static>>;
   type SimulateWorkspaceStream = Pin<
-    Box<
-      dyn futures_core::Stream<
-          Item = std::result::Result<msg::SimulationEvent, tonic::Status>,
-        > + Send
-        + 'static,
-    >,
+    Box<dyn futures_core::Stream<Item = std::result::Result<msg::SimulationEvent, tonic::Status>> + Send + 'static>,
   >;
 
   async fn create_workspace(
     &self,
     _request: tonic::Request<msg::CreateRequest>,
-  ) -> std::result::Result<tonic::Response<msg::CreatedResponse>, tonic::Status>
-  {
+  ) -> std::result::Result<tonic::Response<msg::CreatedResponse>, tonic::Status> {
     tracing::info!("Create workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
@@ -118,8 +99,7 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn list_workspaces(
     &self,
     _request: tonic::Request<msg::ListRequest>,
-  ) -> std::result::Result<tonic::Response<msg::WorkspaceList>, tonic::Status>
-  {
+  ) -> std::result::Result<tonic::Response<msg::WorkspaceList>, tonic::Status> {
     tracing::info!("Listing workspaces");
     Err(tonic::Status::internal("Not implemented"))
   }
@@ -136,10 +116,7 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn configure_workspace(
     &self,
     _request: tonic::Request<msg::ConfigurationRequest>,
-  ) -> std::result::Result<
-    tonic::Response<msg::ConfiguredResponse>,
-    tonic::Status,
-  > {
+  ) -> std::result::Result<tonic::Response<msg::ConfiguredResponse>, tonic::Status> {
     tracing::info!("Configuring workspace {}", "implement me");
     Err(tonic::Status::internal("Not implemented"))
   }
@@ -147,8 +124,7 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn delete_workspace(
     &self,
     _request: tonic::Request<msg::DeleteRequest>,
-  ) -> std::result::Result<tonic::Response<msg::DeleteResponse>, tonic::Status>
-  {
+  ) -> std::result::Result<tonic::Response<msg::DeleteResponse>, tonic::Status> {
     tracing::info!("Delete workspace request");
     Err(tonic::Status::internal("Not implemented"))
   }
@@ -156,16 +132,11 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn target_device(
     &self,
     request: tonic::Request<msg::TargetRequest>,
-  ) -> std::result::Result<tonic::Response<msg::TargetResponse>, tonic::Status>
-  {
+  ) -> std::result::Result<tonic::Response<msg::TargetResponse>, tonic::Status> {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
-    tracing::info!(
-      "Workspace {} will now target {}",
-      workspace_name,
-      device_name
-    );
+    tracing::info!("Workspace {} will now target {}", workspace_name, device_name);
     if let Err(err) = self.simulation_sender.send(SimulationEvent::TargetEvent(
       workspace_name.clone(),
       device_name.clone(),
@@ -174,24 +145,15 @@ impl VirtualWorkspaces for WorkspaceServer {
       return Err(tonic::Status::from_error(Box::new(err)));
     }
 
-    if let Err(err) =
-      self
-        .workspace_sender
-        .send(SubscriptionEvent::WorkspaceEvent(
-          workspace_name,
-          msg::WorkspaceEvent {
-            event_type: Some(msg::workspace_event::EventType::TargetUpdate(
-              msg::TargetUpdate {
-                device: device_name,
-              },
-            )),
-          },
-        ))
-    {
-      println!(
-        "Failed to notify listeners of target update event: {:?}",
-        err
-      );
+    if let Err(err) = self.workspace_sender.send(SubscriptionEvent::WorkspaceEvent(
+      workspace_name,
+      msg::WorkspaceEvent {
+        event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
+          device: device_name,
+        })),
+      },
+    )) {
+      println!("Failed to notify listeners of target update event: {:?}", err);
       return Err(tonic::Status::from_error(Box::new(err)));
     }
 
@@ -201,21 +163,14 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn cancel_simulation(
     &self,
     request: tonic::Request<msg::CancelSimulationRequest>,
-  ) -> std::result::Result<
-    tonic::Response<msg::CancelSimulationResponse>,
-    tonic::Status,
-  > {
+  ) -> std::result::Result<tonic::Response<msg::CancelSimulationResponse>, tonic::Status> {
     tracing::info!("Cancel simulation request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
-    if let Err(err) =
-      self
-        .simulation_sender
-        .send(SimulationEvent::RemoveSimulator(
-          workspace_name,
-          device_name,
-        ))
+    if let Err(err) = self
+      .simulation_sender
+      .send(SimulationEvent::RemoveSimulator(workspace_name, device_name))
     {
       println!("Failed to send listener removed event: {:?}", err);
       return Err(tonic::Status::from_error(Box::new(err)));
@@ -226,10 +181,7 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn cancel_subscription(
     &self,
     request: tonic::Request<msg::CancelSubscriptionRequest>,
-  ) -> std::result::Result<
-    tonic::Response<msg::CancelSubscriptionResponse>,
-    tonic::Status,
-  > {
+  ) -> std::result::Result<tonic::Response<msg::CancelSubscriptionResponse>, tonic::Status> {
     tracing::info!("Cancel subscription request");
     let request = request.into_inner();
     let workspace_name = request.workspace;
@@ -247,23 +199,17 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn control_workspace(
     &self,
     request: tonic::Request<tonic::Streaming<msg::ControlRequest>>,
-  ) -> std::result::Result<tonic::Response<msg::ControlResponse>, tonic::Status>
-  {
+  ) -> std::result::Result<tonic::Response<msg::ControlResponse>, tonic::Status> {
     let mut stream = request.into_inner();
 
     if let Some(Ok(msg::ControlRequest {
-      event_type:
-        Some(msg::control_request::EventType::Workspace(msg::ControlWorkspace {
-          workspace,
-          device,
-        })),
+      event_type: Some(msg::control_request::EventType::Workspace(msg::ControlWorkspace { workspace, device })),
     })) = stream.next().await
     {
       println!("Device {} will control workspace {}", device, workspace);
       while let Some(req) = stream.next().await {
         if let Ok(msg::ControlRequest {
-          event_type:
-            Some(msg::control_request::EventType::InputEvent(input_event)),
+          event_type: Some(msg::control_request::EventType::InputEvent(input_event)),
         }) = req
         {
           self
@@ -293,60 +239,44 @@ impl VirtualWorkspaces for WorkspaceServer {
   async fn simulate_workspace(
     &self,
     request: tonic::Request<msg::SimulateRequest>,
-  ) -> std::result::Result<
-    tonic::Response<Self::SimulateWorkspaceStream>,
-    tonic::Status,
-  > {
+  ) -> std::result::Result<tonic::Response<Self::SimulateWorkspaceStream>, tonic::Status> {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
     let (sender, receiver) = mpsc::unbounded_channel::<msg::SimulationEvent>();
 
-    println!(
-      "Adding device {} as a simulator for {}.",
-      device_name, workspace_name
-    );
+    println!("Adding device {} as a simulator for {}.", device_name, workspace_name);
 
-    if let Err(err) = self.simulation_sender.send(
-      SimulationEvent::AddSimulator(workspace_name, device_name, sender),
-    ) {
+    if let Err(err) = self
+      .simulation_sender
+      .send(SimulationEvent::AddSimulator(workspace_name, device_name, sender))
+    {
       return Err(tonic::Status::from_error(Box::new(err)));
     }
 
-    let response_stream =
-      tokio_stream::wrappers::UnboundedReceiverStream::new(receiver)
-        .map(Ok::<_, tonic::Status>);
+    let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
     Ok(tonic::Response::new(Box::pin(response_stream)))
   }
 
   async fn subscribe_to_workspace(
     &self,
     request: tonic::Request<msg::WorkspaceSubscriptionRequest>,
-  ) -> std::result::Result<
-    tonic::Response<Self::SubscribeToWorkspaceStream>,
-    tonic::Status,
-  > {
+  ) -> std::result::Result<tonic::Response<Self::SubscribeToWorkspaceStream>, tonic::Status> {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
     let (sender, receiver) = mpsc::unbounded_channel::<msg::WorkspaceEvent>();
 
-    println!(
-      "Adding device {} as a listener for {}.",
-      device_name, workspace_name
-    );
+    println!("Adding device {} as a listener for {}.", device_name, workspace_name);
 
-    if let Err(err) = self.workspace_sender.send(SubscriptionEvent::Subscribe(
-      workspace_name,
-      device_name,
-      sender,
-    )) {
+    if let Err(err) = self
+      .workspace_sender
+      .send(SubscriptionEvent::Subscribe(workspace_name, device_name, sender))
+    {
       return Err(tonic::Status::from_error(Box::new(err)));
     }
 
-    let response_stream =
-      tokio_stream::wrappers::UnboundedReceiverStream::new(receiver)
-        .map(Ok::<_, tonic::Status>);
+    let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
     Ok(tonic::Response::new(Box::pin(response_stream)))
   }
 }

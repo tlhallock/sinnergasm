@@ -1,18 +1,17 @@
-use sinnergasm::{
-  errors::RDevError, grpc_client::GrpcClient, options::Options,
-};
+use sinnergasm::{errors::RDevError, grpc_client::GrpcClient, options::Options};
 
 use sinnergasm::protos as msg;
-use tokio::sync::mpsc as tokio_mpsc;
-use ui_common::events::UiEvent;
+use std::sync::Arc;
+use tokio::sync::broadcast::Sender;
+use ui_common::events;
 
-pub(crate) fn listen_to_system(
-  sender: tokio_mpsc::UnboundedSender<UiEvent>,
-) -> Result<(), RDevError> {
+pub(crate) fn listen_to_system(sender: Sender<events::AppEvent>) -> Result<(), RDevError> {
   rdev::listen(move |event| {
     if let rdev::EventType::MouseMove { x, y } = event.event_type {
       sender
-        .send(UiEvent::LocalMouseChanged(x, y))
+        .send(events::AppEvent::SimulationEvent(
+          events::SimulationEvent::LocalMouseChanged(x, y),
+        ))
         .expect("Unable to send mouse event");
     }
   })?;
@@ -20,9 +19,9 @@ pub(crate) fn listen_to_system(
 }
 
 pub(crate) async fn listen_to_client(
-  options: Options,
+  options: Arc<Options>,
   mut client: GrpcClient,
-  sender: tokio_mpsc::UnboundedSender<UiEvent>,
+  sender: Sender<events::AppEvent>,
 ) -> Result<(), anyhow::Error> {
   let request = msg::SimulateRequest {
     workspace: options.workspace.clone(),
@@ -30,7 +29,9 @@ pub(crate) async fn listen_to_client(
   };
   let mut stream = client.simulate_workspace(request).await?.into_inner();
   while let Some(event) = stream.message().await? {
-    sender.send(UiEvent::SimulateEvent(event))?;
+    sender.send(events::AppEvent::SimulationEvent(
+      events::SimulationEvent::SimulateEvent(event),
+    ))?;
   }
   Ok(())
 }

@@ -1,26 +1,27 @@
 extern crate rdev;
 
 // pub mod display;
-pub mod events;
+// pub mod events;
 pub mod handler;
 pub mod listener;
 pub mod options;
-pub mod prison;
-
-use core::panic;
+pub mod state;
 
 use crate::handler::configure_control_stream;
-use crate::handler::handle_events;
+use crate::handler::send_control_events;
 use crate::listener::listen_to_system;
-use anyhow;
 use sinnergasm::options::Options;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use sinnergasm::grpc_client::create_client;
+use std::sync::Arc;
+use tokio::sync::broadcast;
+use tokio::sync::broadcast::Receiver;
+use tokio::sync::broadcast::Sender;
 use ui_common::device_display::display_devices;
-use ui_common::events::UiEvent;
+use ui_common::events;
 use ui_common::subscribe::subscribe_to_workspace;
 use ui_common::target::send_target_requests;
 
@@ -28,39 +29,52 @@ fn die_early() {
   panic!("Dying early");
 }
 
+async fn flush_mouse_movements(
+  duration: std::time::Duration,
+  mut receiver: Receiver<events::AppEvent>,
+  sender: Sender<events::AppEvent>,
+) -> Result<(), anyhow::Error> {
+  let mut interval = tokio::time::interval(duration);
+  loop {
+    interval.tick().await;
+    if let events::AppEvent::Quit = receiver.recv().await? {
+      return Ok(());
+    }
+    if let Err(err) = sender.send(events::AppEvent::ControlEvent(events::ControllerEvent::FlushMouse)) {
+      eprintln!("Error sending flush mouse event: {}", err);
+    }
+  }
+}
+
 #[tokio::main]
-// #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> anyhow::Result<()> {
-  let options = Options::new("desktop".into());
+  let options = Arc::new(Options::new("desktop".into()));
   let client = create_client(&options).await?;
 
-  let (sender, receiver) = tokio_mpsc::unbounded_channel::<UiEvent>();
-  let (control_sender, control_receiver) = tokio_mpsc::unbounded_channel();
-  let (target_sender, target_receiver) =
-    tokio_mpsc::unbounded_channel::<UiEvent>();
+  let (sender, _) = broadcast::channel::<events::AppEvent>(options.capacity);
 
-  let receiver_stream = UnboundedReceiverStream::new(control_receiver);
+  let (control_send, control_recv) = tokio_mpsc::unbounded_channel();
+  let receiver_stream = UnboundedReceiverStream::new(control_recv);
   let mut client_clone = client.clone();
   let network_task = tokio::task::spawn(async move {
     client_clone.control_workspace(receiver_stream).await?;
-    println!("Control workspace finished");
     anyhow::Ok(())
   });
-  configure_control_stream(&control_sender, &options)?;
+  configure_control_stream(&control_send, &options)?;
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();
   let options_clone = options.clone();
   let subscribe_task = tokio::task::spawn(async move {
-    subscribe_to_workspace(options_clone, client_clone, sender_clone).await
+    subscribe_to_workspace(options_clone, client_clone, sender_clone).await?;
+    anyhow::Ok(())
   });
 
   let options_clone = options.clone();
   let client_clone = client.clone();
+  let receiver = sender.subscribe();
   let target_task = tokio::task::spawn(async move {
-    println!("Starting target task");
-    send_target_requests(receiver, target_sender, client_clone, options_clone)
-      .await?;
+    send_target_requests(receiver, client_clone, options_clone).await?;
     anyhow::Ok(())
   });
 
@@ -70,9 +84,18 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
+  let receiver = sender.subscribe();
   let forward_task = tokio::task::spawn(async move {
-    handle_events(target_receiver, control_sender).await?;
+    send_control_events(receiver, control_send).await?;
     Ok(())
+  });
+
+  let receiver = sender.subscribe();
+  let sender_clone = sender.clone();
+  let frequency = options.controller_mouse_frequency;
+  let flush_task = tokio::task::spawn(async move {
+    flush_mouse_movements(frequency, receiver, sender_clone).await?;
+    anyhow::Ok(())
   });
 
   display_devices(client, &options, sender).await?;
@@ -82,7 +105,7 @@ async fn main() -> anyhow::Result<()> {
   // TODO: cleanly close the connections...
   die_early();
 
-  let futures = vec![forward_task, target_task, subscribe_task, network_task];
+  let futures = vec![forward_task, target_task, subscribe_task, network_task, flush_task];
   futures::future::join_all(futures).await;
 
   anyhow::Ok(())

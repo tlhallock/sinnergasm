@@ -1,20 +1,17 @@
 use rdev;
 use sinnergasm::errors::RDevError;
-use ui_common::events::UiEvent;
+use ui_common::events;
 
-use tokio::sync::mpsc as tokio_mpsc;
+use tokio::sync::broadcast::Sender;
 
-pub(crate) fn listen_to_system(
-  sender: tokio_mpsc::UnboundedSender<UiEvent>,
-) -> Result<(), RDevError> {
+pub(crate) fn listen_to_system(sender: Sender<events::AppEvent>) -> Result<(), RDevError> {
   rdev::listen(move |event| {
-    if matches!(
-      event.event_type,
-      rdev::EventType::KeyPress(rdev::Key::AltGr)
-    ) {
+    if matches!(event.event_type, rdev::EventType::KeyPress(rdev::Key::AltGr)) {
       panic!("Need some escape key: AltGr pressed");
     }
-    if let Err(e) = sender.send(UiEvent::ControlEvent(event.event_type)) {
+    if let Err(e) = sender.send(events::AppEvent::ControlEvent(events::ControllerEvent::RDevEvent(
+      event.event_type,
+    ))) {
       eprintln!("Error sending rdev event: {:?}", e);
     }
   })?;

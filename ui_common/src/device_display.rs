@@ -2,6 +2,7 @@ use druid::widget::Button;
 use druid::widget::Flex;
 use druid::widget::Label;
 
+use crate::events;
 use druid::AppLauncher;
 use druid::Data;
 use druid::Widget;
@@ -10,19 +11,14 @@ use druid::WindowDesc;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
-
-use crate::events::UiEvent;
-use tokio::sync::mpsc as tokio_mpsc;
+use tokio::sync::broadcast::Sender;
 
 #[derive(Clone, Data)]
 struct DisplayState {
   listening: bool,
 }
 
-fn ui_builder(
-  other_devices: Vec<msg::Device>,
-  sender: tokio_mpsc::UnboundedSender<UiEvent>,
-) -> impl Widget<DisplayState> {
+fn ui_builder(other_devices: Vec<msg::Device>, sender: Sender<events::AppEvent>) -> impl Widget<DisplayState> {
   let label = Label::dynamic(|state: &DisplayState, _| {
     if state.listening {
       "Forwarding".into()
@@ -39,7 +35,7 @@ fn ui_builder(
     let button_sender = sender.clone();
     let button = Button::new(label).on_click(move |_ctx, _data, _env| {
       button_sender
-        .send(UiEvent::RequestTarget(device.clone()))
+        .send(events::AppEvent::target(device.clone()))
         .expect("Unable to go to queue workspace request");
     });
     column.add_child(button);
@@ -50,7 +46,7 @@ fn ui_builder(
 pub async fn display_devices(
   mut client: GrpcClient,
   options: &Options,
-  sender: tokio_mpsc::UnboundedSender<UiEvent>,
+  sender: Sender<events::AppEvent>,
 ) -> Result<(), anyhow::Error> {
   let other_devices = {
     let request = msg::GetRequest {

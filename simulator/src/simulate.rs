@@ -3,7 +3,6 @@ pub mod events;
 pub mod handler;
 pub mod listener;
 
-use tokio::sync::mpsc as tokio_mpsc;
 use ui_common::subscribe::subscribe_to_workspace;
 
 use anyhow;
@@ -15,6 +14,8 @@ use ui_common::target::send_target_requests;
 use crate::handler::simulate_receiver;
 use crate::listener::listen_to_client;
 use crate::listener::listen_to_system;
+use std::sync::Arc;
+use tokio::sync::broadcast;
 
 // let cert = std::fs::read_to_string("ca.pem")?;
 // .tls_config(ClientTlsConfig::new()
@@ -33,12 +34,11 @@ fn print_type_of<T>(_: &T) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  let options = Options::new("laptop".into());
+  let options = Arc::new(Options::new("laptop".into()));
   let client = create_client(&options).await?;
   print_type_of(&client);
 
-  let (sender, receiver) = tokio_mpsc::unbounded_channel();
-  let (target_sender, target_receiver) = tokio_mpsc::unbounded_channel();
+  let (sender, _) = broadcast::channel(options.capacity);
 
   let sender_clone = sender.clone();
   let _ = std::thread::spawn(move || listen_to_system(sender_clone));
@@ -46,9 +46,8 @@ async fn main() -> anyhow::Result<()> {
   let sender_clone = sender.clone();
   let client_clone = client.clone();
   let options_clone = options.clone();
-  let subscribe_task = tokio::task::spawn(async move {
-    subscribe_to_workspace(options_clone, client_clone, sender_clone).await
-  });
+  let subscribe_task =
+    tokio::task::spawn(async move { subscribe_to_workspace(options_clone, client_clone, sender_clone).await });
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();
@@ -60,14 +59,15 @@ async fn main() -> anyhow::Result<()> {
 
   let client_clone = client.clone();
   let options_clone = options.clone();
+  let receiver = sender.subscribe();
   let target_task = tokio::task::spawn(async move {
-    send_target_requests(receiver, target_sender, client_clone, options_clone)
-      .await?;
-    Ok(())
+    send_target_requests(receiver, client_clone, options_clone).await?;
+    anyhow::Ok(())
   });
 
+  let receiver = sender.subscribe();
   let simulate_task = tokio::task::spawn(async move {
-    simulate_receiver(target_receiver).await?;
+    simulate_receiver(receiver).await?;
     Ok(())
   });
 

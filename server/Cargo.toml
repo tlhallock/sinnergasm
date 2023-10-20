@@ -13,7 +13,7 @@ futures = "0.3.28"
 futures-core = "0.3.28"
 sinnergism_common = { path = "../common" }
 
-tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread", "sync"] }
 tonic = "0.9.2"
 tokio-stream = "0.1.14"
 tonic-health = "0.10.2"

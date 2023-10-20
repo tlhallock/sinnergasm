@@ -4,6 +4,8 @@
 // pub const HOST: &str =
 //   "sinnergy-nlb-bdef3e305c57149f.elb.us-west-1.amazonaws.com";
 
+use std::time::Duration;
+
 pub const HOST: &str = "10.0.0.129";
 
 pub const PORT: i64 = 50051;
@@ -23,6 +25,8 @@ pub struct Options {
   pub device: String,
   pub timeout: u64,
   pub concurrency_limit: usize,
+  pub controller_mouse_frequency: Duration,
+  pub capacity: usize,
 }
 
 impl Options {
@@ -34,6 +38,8 @@ impl Options {
       device,
       timeout: 5,
       concurrency_limit: 256,
+      controller_mouse_frequency: Duration::from_millis(100),
+      capacity: 256,
     }
   }
 }

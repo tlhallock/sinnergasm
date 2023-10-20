@@ -28,14 +28,10 @@ use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-  let subscriber = FmtSubscriber::builder()
-    .with_max_level(Level::INFO)
-    .finish();
-  tracing::subscriber::set_global_default(subscriber)
-    .expect("setting default subscriber failed");
+  let subscriber = FmtSubscriber::builder().with_max_level(Level::INFO).finish();
+  tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-  let (workspace_send, mut workspace_recv) =
-    tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
+  let (workspace_send, mut workspace_recv) = tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
   let workspace_task = tokio::task::spawn(async move {
     let mut workspace_actor = WorkspaceActor::default();
     while let Some(event) = workspace_recv.recv().await {
@@ -46,8 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   });
 
-  let (sim_send, mut sim_recv) =
-    tokio::sync::mpsc::unbounded_channel::<SimulationEvent>();
+  let (sim_send, mut sim_recv) = tokio::sync::mpsc::unbounded_channel::<SimulationEvent>();
   let replication_task = tokio::task::spawn(async move {
     let mut simulation_actor = SimulationActor::default();
     while let Some(event) = sim_recv.recv().await {
@@ -60,21 +55,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   let token = read_token();
   let check_auth = move |req: Request<()>| {
-    let metadata: MetadataValue<_> =
-      format!("Bearer {}", token).parse().unwrap();
+    let metadata: MetadataValue<_> = format!("Bearer {}", token).parse().unwrap();
     match req.metadata().get("authorization") {
       Some(t) if metadata == t => Ok(req),
       _ => Err(Status::unauthenticated("No valid auth token")),
     }
   };
 
-  let (mut health_reporter, _health_service) =
-    tonic_health::server::health_reporter();
+  let (mut health_reporter, _health_service) = tonic_health::server::health_reporter();
   health_reporter
-    .set_service_status(
-      "virtualworkspaces.VirtualWorkspaces",
-      ServingStatus::Serving,
-    )
+    .set_service_status("virtualworkspaces.VirtualWorkspaces", ServingStatus::Serving)
     .await;
 
   // health_reporter

@@ -183,14 +183,19 @@ message WorkspaceEvent {
   oneof event_type {
     ConfigurationUpdate configuration_update = 1;
     Targetted targetted = 2;
-    TargetUpdate target_update = 3;
-    DeviceConnected device_connected = 4;
-    DeviceDisconnected device_disconnected = 5;
+    Untargetted untargetted = 3;
+    TargetUpdate target_update = 4;
+    DeviceConnected device_connected = 5;
+    DeviceDisconnected device_disconnected = 6;
   }
 }
 
 message Targetted {
   optional string clipboard = 2;
+}
+
+message Untargetted {
+  string device = 1;
 }
 
 message TargetUpdate {

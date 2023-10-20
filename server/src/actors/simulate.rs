@@ -1,3 +1,4 @@
+use crate::actors::device_map::DeviceMap;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 
@@ -17,40 +18,16 @@ pub(crate) enum SimulationEvent {
   ApplicationClosing,
 }
 
-#[derive(Default)]
-struct DeviceMap {
-  target: Option<(
-    String,
-    tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
-  )>,
-  devices: BTreeMap<
-    ids::DeviceName,
-    tokio::sync::mpsc::UnboundedSender<msg::SimulationEvent>,
-  >,
-}
-
-impl Debug for DeviceMap {
-  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-    f.debug_struct("DeviceMap")
-      .field("target", &self.target.as_ref().map(|(name, _)| name))
-      .field("devices", &self.devices.keys())
-      .finish()
-  }
-}
-
 #[derive(Debug, Default)]
 pub(crate) struct SimulationActor {
-  listeners: BTreeMap<ids::WorkspaceName, DeviceMap>,
+  listeners: BTreeMap<ids::WorkspaceName, DeviceMap<msg::SimulationEvent>>,
 }
 
 impl SimulationActor {
   pub(crate) fn receive(&mut self, event: SimulationEvent) {
     match event {
       SimulationEvent::AddSimulator(workspace_name, device_name, sender) => {
-        let device_map = self
-          .listeners
-          .entry(workspace_name)
-          .or_insert_with(DeviceMap::default);
+        let device_map = self.listeners.entry(workspace_name).or_insert_with(DeviceMap::default);
         // device_map.target = Some((device_name.clone(), sender.clone()));
         device_map.devices.insert(device_name, sender);
         println!("Added simulator for workspace");
@@ -72,7 +49,11 @@ impl SimulationActor {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some(sender) = device_map.devices.get(&device_name) {
             device_map.target = Some((device_name, sender.clone()));
+          } else {
+            println!("Target: new target not found: {} in {}", device_name, workspace_name);
           }
+        } else {
+          println!("Target: No simulation listeners for workspace: {}", workspace_name);
         }
       }
       SimulationEvent::SimulationEvent(workspace_name, event) => {
