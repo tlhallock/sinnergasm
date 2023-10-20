@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::common as ids;
-use sinnergasm::protos as msg;
+
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use tokio::sync::mpsc as tokio_mpsc;

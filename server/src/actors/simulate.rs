@@ -1,6 +1,6 @@
 use crate::actors::device_map::DeviceMap;
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 
 use crate::common as ids;
 use sinnergasm::protos as msg;

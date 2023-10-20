@@ -47,7 +47,7 @@ impl WorkspaceActor {
       }
       SubscriptionEvent::WorkspaceEvent(workspace_name, event) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
-          if let Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device })) =
+          if let Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device: _ })) =
             event.clone().event_type
           {
             panic!("This shouldn't happen");
