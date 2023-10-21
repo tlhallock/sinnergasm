@@ -17,7 +17,7 @@ pub enum SimulationEvent {
 pub enum SubscriptionEvent {
   Targetted,
   Untargetted,
-  RequestTarget(msg::Device),
+  RequestTarget(String),
 }
 
 #[derive(Debug, Clone)]
@@ -29,7 +29,7 @@ pub enum AppEvent {
 }
 
 impl AppEvent {
-  pub(crate) fn target(device: msg::Device) -> Self {
+  pub fn target(device: String) -> Self {
     AppEvent::SubscriptionEvent(SubscriptionEvent::RequestTarget(device))
   }
   pub(crate) fn targetted() -> Self {

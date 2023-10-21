@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::BTreeMap;
 
 use crate::actors::device_map::DeviceMap;
@@ -47,27 +48,16 @@ impl WorkspaceActor {
       }
       SubscriptionEvent::WorkspaceEvent(workspace_name, event) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
-          if let Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device: _ })) =
+          if let Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate { device })) =
             event.clone().event_type
           {
-            panic!("This shouldn't happen");
+            if let Some(sender) = device_map.devices.get(&device) {
+              device_map.target = Some((device.clone(), sender.clone()));
+            } else {
+              println!("Targetted workspace device is not present {:?}", device);
+            }
+            panic!("Target update event should not be sent to workspace actor");
           }
-          // if let Some(msg::workspace_event::EventType::TargetUpdate(
-          //   msg::TargetUpdate { device },
-          // )) = event.clone().event_type
-          // {
-          //   if let Some(device_sender) = device_map.devices.get_mut(&device) {
-          //     if let Err(err) = device_sender.send(msg::WorkspaceEvent {
-          //       event_type: Some(msg::workspace_event::EventType::Targetted(
-          //         msg::Targetted { clipboard: None },
-          //       )),
-          //     }) {
-          //       println!("Failed to send event to listener: {:?}", err);
-          //     }
-          //   } else {
-          //     println!("Targetted device is not listening {:?}", device);
-          //   }
-          // }
           device_map.devices.retain(|_, listener| {
             if let Err(err) = listener.send(event.clone()) {
               println!("Failed to send event to listener: {:?}", err);
@@ -86,6 +76,8 @@ impl WorkspaceActor {
         // TODO: DRY
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some((target, _)) = device_map.target.as_ref() {
+            println!("Current target: {}, new target {}", target, device_name);
+
             // No change in target
             if target == &device_name {
               println!("Target device already targetted: {} in {}", device_name, workspace_name);
@@ -129,9 +121,14 @@ impl WorkspaceActor {
               }
             });
           } else {
+            println!(
+              "No existing target for workspace: {}. new target: {}",
+              workspace_name, device_name
+            );
             // No existing target
             device_map.devices.retain(|device, sender| {
               if device == &device_name {
+                println!("Found new target: {}", device_name);
                 if let Err(err) = sender.send(msg::WorkspaceEvent {
                   event_type: Some(msg::workspace_event::EventType::Targetted(msg::Targetted {
                     clipboard: clipboard.clone(),
@@ -143,6 +140,7 @@ impl WorkspaceActor {
                   return true;
                 }
               } else {
+                println!("Not target new target: {}", device);
                 if let Err(err) = sender.send(msg::WorkspaceEvent {
                   event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
                     device: device_name.clone(),
@@ -155,6 +153,12 @@ impl WorkspaceActor {
                 }
               }
             });
+          }
+
+          if let Some(sender) = device_map.devices.get(&device_name) {
+            device_map.target = Some((device_name.clone(), sender.clone()));
+          } else {
+            println!("Targetted workspace device is not present {:?}", device_name);
           }
         } else {
           println!("Target: No simulation listeners for workspace: {}", workspace_name);

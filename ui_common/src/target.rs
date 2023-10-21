@@ -20,7 +20,7 @@ pub async fn send_target_requests(
       events::AppEvent::SubscriptionEvent(events::SubscriptionEvent::RequestTarget(device)) => {
         let request = msg::TargetRequest {
           workspace: options.workspace.clone(),
-          device: device.name.clone(),
+          device: device.clone(),
           clipboard: match ctx.get_contents() {
             Ok(contents) => Some(contents),
             Err(err) => {

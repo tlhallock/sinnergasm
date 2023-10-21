@@ -35,7 +35,7 @@ fn ui_builder(other_devices: Vec<msg::Device>, sender: Sender<events::AppEvent>)
     let button_sender = sender.clone();
     let button = Button::new(label).on_click(move |_ctx, _data, _env| {
       button_sender
-        .send(events::AppEvent::target(device.clone()))
+        .send(events::AppEvent::target(device.name.clone()))
         .expect("Unable to go to queue workspace request");
     });
     column.add_child(button);

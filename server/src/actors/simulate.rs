@@ -1,6 +1,6 @@
 use crate::actors::device_map::DeviceMap;
 use std::collections::BTreeMap;
-use std::fmt::{Debug};
+use std::fmt::Debug;
 
 use crate::common as ids;
 use sinnergasm::protos as msg;
@@ -50,7 +50,10 @@ impl SimulationActor {
           if let Some(sender) = device_map.devices.get(&device_name) {
             device_map.target = Some((device_name, sender.clone()));
           } else {
-            println!("Target: new target not found: {} in {}", device_name, workspace_name);
+            println!(
+              "Target: new simulation target not found: {} in {}. Maybe it is the controller?",
+              device_name, workspace_name
+            );
           }
         } else {
           println!("Target: No simulation listeners for workspace: {}", workspace_name);

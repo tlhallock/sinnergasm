@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
   let client_clone = client.clone();
   let options_clone = options.clone();
   let subscribe_task =
-    tokio::task::spawn(async move { subscribe_to_workspace(options_clone, client_clone, sender_clone).await });
+    tokio::task::spawn(async move { subscribe_to_workspace(options_clone, client_clone, sender_clone, false).await });
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();

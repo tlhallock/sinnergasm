@@ -1,5 +1,3 @@
-
-
 use crate::events;
 use cli_clipboard::ClipboardContext;
 use cli_clipboard::ClipboardProvider;
@@ -18,6 +16,7 @@ pub async fn subscribe_to_workspace(
   options: Arc<Options>,
   mut client: GrpcClient,
   sender: Sender<events::AppEvent>,
+  reuest_target: bool,
 ) -> Result<(), anyhow::Error> {
   let mut ctx = ClipboardContext::new().expect("Unable to create clipboard context");
 
@@ -27,7 +26,13 @@ pub async fn subscribe_to_workspace(
   };
 
   let mut subscription = client.subscribe_to_workspace(subscription_request).await?.into_inner();
+
+  if reuest_target {
+    sender.send(events::AppEvent::target(options.device.clone()))?;
+  }
+
   while let Some(message) = subscription.message().await? {
+    println!("Subscription message: {:?}", message);
     if let Some(msg::workspace_event::EventType::Targetted(msg::Targetted { clipboard })) = message.clone().event_type {
       println!("Subscription message targetted: clipboard = {:?}", clipboard);
       if let Some(clipboard) = clipboard {

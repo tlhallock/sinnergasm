@@ -1,17 +1,15 @@
 use anyhow;
+use anyhow::Ok;
 use rdev::simulate;
-
 use sinnergasm::protos as msg;
-
 use tokio::sync::broadcast::Receiver;
-
-
 use ui_common::events;
+use ui_common::translation as tr;
 
 fn simulate_input_event(
   desired_position: (f64, f64),
   event: msg::user_input_event::Type,
-) -> Result<Option<(f64, f64)>, rdev::SimulateError> {
+) -> Result<Option<(f64, f64)>, anyhow::Error> {
   match event {
     msg::user_input_event::Type::MouseMove(msg::MouseMoveEvent { delta_x, delta_y }) => {
       let next_position = (desired_position.0 + delta_x, desired_position.1 + delta_y);
@@ -21,8 +19,38 @@ fn simulate_input_event(
       })?;
       Ok(Some(next_position))
     }
-    msg::user_input_event::Type::MouseButton(msg::MouseButtonEvent {}) => Ok(None),
-    msg::user_input_event::Type::Keyboard(msg::KeyboardEvent {}) => Ok(None),
+    msg::user_input_event::Type::MousePress(button) => {
+      if let Some(button) = tr::mouse_msg_to_rdev(&button) {
+        simulate(&rdev::EventType::ButtonPress(button))?;
+      } else {
+        println!("Unknown mouse button: {:?}", button);
+      }
+      Ok(None)
+    },
+    msg::user_input_event::Type::MouseRelease(button) => {
+      if let Some(button) = tr::mouse_msg_to_rdev(&button) {
+        simulate(&rdev::EventType::ButtonRelease(button))?;
+      } else {
+        println!("Unknown mouse button: {:?}", button);
+      }
+      Ok(None)
+    },
+    msg::user_input_event::Type::KeyRelease(key) => {
+      if let Some(rdev_key) = tr::msg_to_rdev(&key) {
+        simulate(&rdev::EventType::KeyRelease(rdev_key))?;
+      } else {
+        println!("Unknown key: {:?}", key);
+      }
+      Ok(None)
+    }
+    msg::user_input_event::Type::KeyPress(key) => {
+      if let Some(rdev_key) = tr::msg_to_rdev(&key) {
+        simulate(&rdev::EventType::KeyPress(rdev_key))?;
+      } else {
+        println!("Unknown key: {:?}", key);
+      }
+      Ok(None)
+    }
     msg::user_input_event::Type::Wheel(msg::WheelEvent { dx, dy }) => {
       simulate(&rdev::EventType::Wheel {
         delta_x: dx.into(),

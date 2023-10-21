@@ -31,18 +31,12 @@ fn die_early() {
 
 async fn flush_mouse_movements(
   duration: std::time::Duration,
-  mut receiver: Receiver<events::AppEvent>,
   sender: Sender<events::AppEvent>,
 ) -> Result<(), anyhow::Error> {
   let mut interval = tokio::time::interval(duration);
   loop {
     interval.tick().await;
-    if let events::AppEvent::Quit = receiver.recv().await? {
-      return Ok(());
-    }
-    if let Err(err) = sender.send(events::AppEvent::ControlEvent(events::ControllerEvent::FlushMouse)) {
-      eprintln!("Error sending flush mouse event: {}", err);
-    }
+    sender.send(events::AppEvent::ControlEvent(events::ControllerEvent::FlushMouse))?;
   }
 }
 
@@ -66,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
   let client_clone = client.clone();
   let options_clone = options.clone();
   let subscribe_task = tokio::task::spawn(async move {
-    subscribe_to_workspace(options_clone, client_clone, sender_clone).await?;
+    subscribe_to_workspace(options_clone, client_clone, sender_clone, true).await?;
     anyhow::Ok(())
   });
 
@@ -90,11 +84,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
   });
 
-  let receiver = sender.subscribe();
   let sender_clone = sender.clone();
   let frequency = options.controller_mouse_frequency;
   let flush_task = tokio::task::spawn(async move {
-    flush_mouse_movements(frequency, receiver, sender_clone).await?;
+    flush_mouse_movements(frequency, sender_clone).await?;
     anyhow::Ok(())
   });
 

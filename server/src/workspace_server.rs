@@ -70,15 +70,15 @@ impl WorkspaceServer {
   }
 }
 
-fn map_transition(event: events::WorkspaceSubscriptionEvent) -> Result<msg::WorkspaceEvent, Status> {
-  match event {
-    events::WorkspaceSubscriptionEvent::SetTarget(_, _) => Ok(msg::WorkspaceEvent {
-      event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
-        device: "".into(),
-      })),
-    }),
-  }
-}
+// fn map_transition(event: events::WorkspaceSubscriptionEvent) -> Result<msg::WorkspaceEvent, Status> {
+//   match event {
+//     events::WorkspaceSubscriptionEvent::SetTarget(_, _) => Ok(msg::WorkspaceEvent {
+//       event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
+//         device: "".into(),
+//       })),
+//     }),
+//   }
+// }
 
 #[tonic::async_trait]
 impl VirtualWorkspaces for WorkspaceServer {
@@ -136,6 +136,7 @@ impl VirtualWorkspaces for WorkspaceServer {
     let request = request.into_inner();
     let workspace_name = request.workspace;
     let device_name = request.device;
+    let clipboard = request.clipboard;
     tracing::info!("Workspace {} will now target {}", workspace_name, device_name);
     if let Err(err) = self.simulation_sender.send(SimulationEvent::TargetEvent(
       workspace_name.clone(),
@@ -145,14 +146,20 @@ impl VirtualWorkspaces for WorkspaceServer {
       return Err(tonic::Status::from_error(Box::new(err)));
     }
 
-    if let Err(err) = self.workspace_sender.send(SubscriptionEvent::WorkspaceEvent(
-      workspace_name,
-      msg::WorkspaceEvent {
-        event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
-          device: device_name,
-        })),
-      },
-    )) {
+    if let Err(err) = self.workspace_sender.send(SubscriptionEvent::TargetEvent(
+      workspace_name.clone(),
+      device_name.clone(),
+      clipboard,
+    ))
+    // SubscriptionEvent::WorkspaceEvent(
+    // workspace_name,
+    // msg::WorkspaceEvent {
+    //   event_type: Some(msg::workspace_event::EventType::TargetUpdate(msg::TargetUpdate {
+    //     device: device_name,
+    //   })),
+    // },
+    // ))
+    {
       println!("Failed to notify listeners of target update event: {:?}", err);
       return Err(tonic::Status::from_error(Box::new(err)));
     }

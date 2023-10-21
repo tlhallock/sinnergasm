@@ -235,9 +235,11 @@ message SimulationEvent {
 message UserInputEvent {
   oneof type {
     MouseMoveEvent mouse_move = 1;
-    MouseButtonEvent mouse_button = 2;
-    KeyboardEvent keyboard = 3;
-    WheelEvent wheel = 4;
+    MouseButton mouse_press = 2;
+    MouseButton mouse_release = 3;
+    Key key_press = 4;
+    Key key_release = 5;
+    WheelEvent wheel = 6;
   }
 }
 
@@ -246,14 +248,6 @@ message MouseMoveEvent {
   // double offset_y = 2;
   double delta_x = 1;
   double delta_y = 2;
-}
-
-message MouseButtonEvent {
-  // ... details
-}
-
-message KeyboardEvent {
-  // ... details
 }
 
 message WheelEvent {
@@ -277,3 +271,139 @@ message CancelSubscriptionRequest {
 }
 
 message CancelSubscriptionResponse {}
+
+
+message MouseButton {
+  oneof type {
+    MouseButtons button = 1;
+    uint32 other = 2;
+  }
+}
+
+enum MouseButtons {
+  UNKNOWN_BUTTON = 0;
+  LEFT = 1;
+  RIGHT = 2;
+  MIDDLE = 3;
+}
+
+
+message Key {
+  oneof key {
+    KeyCode code = 1;
+    uint32 other = 2;
+  }
+}
+
+
+
+
+
+enum KeyCode {
+  UNKNOWN_KEY = 0;
+  ALT = 1;
+  ALTGR = 2;
+  BACKSPACE = 3;
+  CAPSLOCK = 4;
+  CONTROLLEFT = 5;
+  CONTROLRIGHT = 6;
+  DELETE = 7;
+  DOWNARROW = 8;
+  END = 9;
+  ESCAPE = 10;
+  F1 = 11;
+  F10 = 12;
+  F11 = 13;
+  F12 = 14;
+  F2 = 15;
+  F3 = 16;
+  F4 = 17;
+  F5 = 18;
+  F6 = 19;
+  F7 = 20;
+  F8 = 21;
+  F9 = 22;
+  HOME = 23;
+  LEFTARROW = 24;
+  METALEFT = 25;
+  METARIGHT = 26;
+  PAGEDOWN = 27;
+  PAGEUP = 28;
+  RETURN = 29;
+  RIGHTARROW = 30;
+  SHIFTLEFT = 31;
+  SHIFTRIGHT = 32;
+  SPACE = 33;
+  TAB = 34;
+  UPARROW = 35;
+  PRINTSCREEN = 36;
+  SCROLLLOCK = 37;
+  PAUSE = 38;
+  NUMLOCK = 39;
+  BACKQUOTE = 40;
+  NUM1 = 41;
+  NUM2 = 42;
+  NUM3 = 43;
+  NUM4 = 44;
+  NUM5 = 45;
+  NUM6 = 46;
+  NUM7 = 47;
+  NUM8 = 48;
+  NUM9 = 49;
+  NUM0 = 50;
+  MINUS = 51;
+  EQUAL = 52;
+  KEYQ = 53;
+  KEYW = 54;
+  KEYE = 55;
+  KEYR = 56;
+  KEYT = 57;
+  KEYY = 58;
+  KEYU = 59;
+  KEYI = 60;
+  KEYO = 61;
+  KEYP = 62;
+  LEFTBRACKET = 63;
+  RIGHTBRACKET = 64;
+  KEYA = 65;
+  KEYS = 66;
+  KEYD = 67;
+  KEYF = 68;
+  KEYG = 69;
+  KEYH = 70;
+  KEYJ = 71;
+  KEYK = 72;
+  KEYL = 73;
+  SEMICOLON = 74;
+  QUOTE = 75;
+  BACKSLASH = 76;
+  INTLBACKSLASH = 77;
+  KEYZ = 78;
+  KEYX = 79;
+  KEYC = 80;
+  KEYV = 81;
+  KEYB = 82;
+  KEYN = 83;
+  KEYM = 84;
+  COMMA = 85;
+  DOT = 86;
+  SLASH = 87;
+  INSERT = 88;
+  KPRETURN = 89;
+  KPMINUS = 90;
+  KPPLUS = 91;
+  KPMULTIPLY = 92;
+  KPDIVIDE = 93;
+  KP0 = 94;
+  KP1 = 95;
+  KP2 = 96;
+  KP3 = 97;
+  KP4 = 98;
+  KP5 = 99;
+  KP6 = 100;
+  KP7 = 101;
+  KP8 = 102;
+  KP9 = 103;
+  KPDELETE = 104;
+  FUNCTION = 105;
+}
