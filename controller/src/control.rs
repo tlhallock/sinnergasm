@@ -5,7 +5,7 @@ extern crate rdev;
 pub mod handler;
 pub mod listener;
 pub mod options;
-pub mod state;
+// pub mod state;
 
 use crate::handler::configure_control_stream;
 use crate::handler::send_control_events;
@@ -18,7 +18,6 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use sinnergasm::grpc_client::create_client;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::Sender;
 use ui_common::device_display::display_devices;
 use ui_common::events;

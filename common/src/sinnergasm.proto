@@ -19,7 +19,11 @@ service VirtualWorkspaces {
 
   rpc SubscribeToWorkspace(WorkspaceSubscriptionRequest) returns (stream WorkspaceEvent);
   rpc CancelSubscription(CancelSubscriptionRequest) returns (CancelSubscriptionResponse);
+
+  rpc DownloadFile(stream DownloadRequest) returns (stream DownloadResponse);
+  rpc UploadFile(stream UploadRequest) returns (stream UploadResponse);
 }
+
 
 //////////////////////
 // Create
@@ -75,6 +79,13 @@ message Monitor {
 message Device {
   string name = 1;
   bool controller = 2;
+  string download_directory = 3;
+  repeated SharedFile files = 4;
+}
+
+message SharedFile {
+  string file_path = 1;
+  optional uint64 size = 2;
 }
 
 //////////////////////
@@ -187,6 +198,7 @@ message WorkspaceEvent {
     TargetUpdate target_update = 4;
     DeviceConnected device_connected = 5;
     DeviceDisconnected device_disconnected = 6;
+    UploadRequested download_request = 7;
   }
 }
 
@@ -217,6 +229,11 @@ message DeviceConnected {
 
 message DeviceDisconnected {
   string device = 1;
+}
+
+message UploadRequested {
+  string file_path = 1;
+  uint64 buffer_size = 2;
 }
 
 //////////////////////
@@ -407,3 +424,71 @@ enum KeyCode {
   KPDELETE = 104;
   FUNCTION = 105;
 }
+
+
+
+//////////////////////
+// File sharing
+//////////////////////
+
+message DownloadRequest {
+  oneof type {
+    InitiateDownload initiate = 1;
+    ChunkRequest request = 2;
+    DownloadComplete complete = 3;
+  }
+}
+
+message InitiateDownload {
+  string workspace = 1;
+  string download_device = 2;
+  string upload_device = 3;
+  string file_path = 4;
+  optional uint64 buffer_size = 5;
+}
+
+message ChunkRequest {
+  uint64 offset = 1;
+}
+
+message DownloadComplete {}
+
+message DownloadResponse {
+  oneof type {
+    DownloadInitated initated = 1;
+    SharedFileChunk chunk = 2;
+  }
+}
+
+message DownloadInitated {
+  uint64 number_of_chunks = 1;
+  string checksum = 2;
+}
+message SharedFileChunk {
+  uint64 offset = 1;
+  bytes data = 2;
+}
+
+message UploadRequest {
+  InitiateUpload initiate = 1;
+  SharedFileChunk chunk = 2;
+}
+
+message InitiateUpload {
+  string workspace = 1;
+  string download_device = 2;
+  string upload_device = 3;
+  string file_path = 4;
+  string checksum = 5;
+  uint64 number_of_chunks = 6;
+}
+
+
+message UploadResponse {
+  oneof type {
+    ChunkRequest request = 1;
+    UploadComplete complete = 2;
+  }
+}
+
+message UploadComplete {}

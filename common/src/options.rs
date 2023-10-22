@@ -38,7 +38,7 @@ impl Options {
       device,
       timeout: 5,
       concurrency_limit: 256,
-      controller_mouse_frequency: Duration::from_millis(100),
+      controller_mouse_frequency: Duration::from_millis(20),
       capacity: 256,
     }
   }

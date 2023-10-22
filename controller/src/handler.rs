@@ -7,7 +7,6 @@ use tokio::sync::mpsc as tokio_mpsc;
 use ui_common::events;
 use ui_common::translation as tr;
 
-
 pub(crate) fn configure_control_stream(
   control_sender: &tokio_mpsc::UnboundedSender<msg::ControlRequest>,
   options: &Options,
@@ -25,20 +24,16 @@ fn translate_other_events(event: rdev::EventType) -> msg::ControlRequest {
   msg::ControlRequest {
     event_type: Some(msg::control_request::EventType::InputEvent(msg::UserInputEvent {
       r#type: Some(match event {
-        rdev::EventType::KeyPress(key) => msg::user_input_event::Type::KeyPress(
-          tr::rdev_to_msg(&key)
-        ),
-        rdev::EventType::KeyRelease(key) => msg::user_input_event::Type::KeyRelease(
-          tr::rdev_to_msg(&key)
-        ),
-        rdev::EventType::ButtonPress(button) => msg::user_input_event::Type::MousePress(
-          tr::mouse_rdev_to_msg(button)
-        ),
-        rdev::EventType::ButtonRelease(button) => msg::user_input_event::Type::MouseRelease(
-          tr::mouse_rdev_to_msg(button)
-        ),
-        rdev::EventType::Wheel { delta_x, delta_y } => msg::user_input_event::Type::Wheel(
-          msg::WheelEvent { dx: delta_x as i32, dy: delta_y as i32, }),
+        rdev::EventType::KeyPress(key) => msg::user_input_event::Type::KeyPress(tr::rdev_to_msg(&key)),
+        rdev::EventType::KeyRelease(key) => msg::user_input_event::Type::KeyRelease(tr::rdev_to_msg(&key)),
+        rdev::EventType::ButtonPress(button) => msg::user_input_event::Type::MousePress(tr::mouse_rdev_to_msg(button)),
+        rdev::EventType::ButtonRelease(button) => {
+          msg::user_input_event::Type::MouseRelease(tr::mouse_rdev_to_msg(button))
+        }
+        rdev::EventType::Wheel { delta_x, delta_y } => msg::user_input_event::Type::Wheel(msg::WheelEvent {
+          dx: delta_x as i32,
+          dy: delta_y as i32,
+        }),
         rdev::EventType::MouseMove { x: _, y: _ } => panic!("Handled seperately"),
       }),
     })),
@@ -95,7 +90,6 @@ impl ForwardState {
 
   fn update(&mut self, last: (f64, f64), next: (f64, f64)) {
     if self.is_simulated_input(next) {
-      println!("New mouse position is back to the origin, probably not user input");
       return;
     }
     let delta_x = next.0 - last.0;
@@ -142,7 +136,6 @@ pub async fn send_control_events(
           state.update(last, next);
         }
         last_position = Some((x, y));
-        println!("State: {:?}", forward_state);
       }
       events::AppEvent::ControlEvent(events::ControllerEvent::RDevEvent(rdev_event)) => {
         if let Some(state) = forward_state.as_mut() {
@@ -156,7 +149,6 @@ pub async fn send_control_events(
       }
       events::AppEvent::ControlEvent(events::ControllerEvent::FlushMouse) => {
         if let Some(state) = forward_state.as_mut() {
-          println!("Forward state: {:?}", state);
           state.maybe_send(&sender);
         }
       }
@@ -166,6 +158,10 @@ pub async fn send_control_events(
       }
       events::AppEvent::SubscriptionEvent(events::SubscriptionEvent::Untargetted) => {
         if let Some(last) = last_position {
+          // Move it out of the way of the go to laptop button...
+          let last = (last.0, last.1 + 50.0);
+          rdev::simulate(&rdev::EventType::MouseMove { x: last.0, y: last.1 })?;
+
           forward_state = Some(ForwardState::new(last));
           println!("Starting fowarding events");
         } else {

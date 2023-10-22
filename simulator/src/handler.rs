@@ -26,7 +26,7 @@ fn simulate_input_event(
         println!("Unknown mouse button: {:?}", button);
       }
       Ok(None)
-    },
+    }
     msg::user_input_event::Type::MouseRelease(button) => {
       if let Some(button) = tr::mouse_msg_to_rdev(&button) {
         simulate(&rdev::EventType::ButtonRelease(button))?;
@@ -34,7 +34,7 @@ fn simulate_input_event(
         println!("Unknown mouse button: {:?}", button);
       }
       Ok(None)
-    },
+    }
     msg::user_input_event::Type::KeyRelease(key) => {
       if let Some(rdev_key) = tr::msg_to_rdev(&key) {
         simulate(&rdev::EventType::KeyRelease(rdev_key))?;

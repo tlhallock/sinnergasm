@@ -1,30 +1,36 @@
 use futures::stream::StreamExt;
 use tokio::sync::mpsc;
 
+use crate::actors::download_manager::DownloadEvent;
 use crate::actors::simulate::SimulationEvent;
 use crate::actors::workspace::SubscriptionEvent;
-use crate::events;
 use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
 use std::pin::Pin;
-use tonic::Status;
 
 type SimulationSender = tokio::sync::mpsc::UnboundedSender<SimulationEvent>;
 type WorkspaceSender = tokio::sync::mpsc::UnboundedSender<SubscriptionEvent>;
+type DownloadSender = tokio::sync::mpsc::UnboundedSender<DownloadEvent>;
 
 #[derive(Debug)]
 pub(crate) struct WorkspaceServer {
   workspace_sender: WorkspaceSender,
   simulation_sender: SimulationSender,
+  download_sender: DownloadSender,
   // workspaces: Actor<events::WorkspaceEvent>,
   the_workspace: msg::Workspace,
 }
 
 impl WorkspaceServer {
-  pub(crate) fn new(workspace_sender: WorkspaceSender, simulation_sender: SimulationSender) -> Self {
+  pub(crate) fn new(
+    workspace_sender: WorkspaceSender,
+    simulation_sender: SimulationSender,
+    download_sender: DownloadSender,
+  ) -> Self {
     Self {
       workspace_sender,
       simulation_sender,
+      download_sender,
       the_workspace: msg::Workspace {
         name: "The Workspace".to_string(),
         controller: "desktop".to_string(),
@@ -33,10 +39,19 @@ impl WorkspaceServer {
           msg::Device {
             name: "desktop".to_string(),
             controller: true,
+            download_directory: "/work/sinnergy/downloads".to_string(),
+            files: vec![
+              msg::SharedFile {
+                file_path: "/work/ProjectsForFun/rust-synergy/seperate/target/release/simulate".into(),
+                size: None,
+              }
+            ],
           },
           msg::Device {
             name: "laptop".to_string(),
             controller: false,
+            download_directory: "/work/sinnergy/downloads".to_string(),
+            files: vec![],
           },
         ],
         monitors: vec![
@@ -87,6 +102,11 @@ impl VirtualWorkspaces for WorkspaceServer {
   type SimulateWorkspaceStream = Pin<
     Box<dyn futures_core::Stream<Item = std::result::Result<msg::SimulationEvent, tonic::Status>> + Send + 'static>,
   >;
+  type DownloadFileStream = Pin<
+    Box<dyn futures_core::Stream<Item = std::result::Result<msg::DownloadResponse, tonic::Status>> + Send + 'static>,
+  >;
+  type UploadFileStream =
+    Pin<Box<dyn futures_core::Stream<Item = std::result::Result<msg::UploadResponse, tonic::Status>> + Send + 'static>>;
 
   async fn create_workspace(
     &self,
@@ -285,5 +305,18 @@ impl VirtualWorkspaces for WorkspaceServer {
 
     let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
     Ok(tonic::Response::new(Box::pin(response_stream)))
+  }
+
+  async fn download_file(
+    &self,
+    request: tonic::Request<tonic::Streaming<msg::DownloadRequest>>,
+  ) -> std::result::Result<tonic::Response<Self::DownloadFileStream>, tonic::Status> {
+    return Err(tonic::Status::internal("Not implemented"));
+  }
+  async fn upload_file(
+    &self,
+    request: tonic::Request<tonic::Streaming<msg::UploadRequest>>,
+  ) -> std::result::Result<tonic::Response<Self::UploadFileStream>, tonic::Status> {
+    return Err(tonic::Status::internal("Not implemented"));
   }
 }

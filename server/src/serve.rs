@@ -10,6 +10,9 @@ use crate::actors::simulate::SimulationEvent;
 use crate::actors::workspace::SubscriptionEvent;
 use crate::actors::workspace::WorkspaceActor;
 
+use actors::download_manager;
+use actors::download_manager::DownloadEvent;
+use actors::download_manager::DownloadsActor;
 use tonic::transport::Server;
 use tonic::{metadata::MetadataValue, Request, Status};
 
@@ -17,6 +20,7 @@ use sinnergasm::options::read_token;
 use sinnergasm::options::PORT;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspacesServer;
 use tonic_health::ServingStatus;
+use tokio::sync::mpsc as tokio_mpsc;
 
 use crate::workspace_server::WorkspaceServer;
 
@@ -31,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let subscriber = FmtSubscriber::builder().with_max_level(Level::INFO).finish();
   tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-  let (workspace_send, mut workspace_recv) = tokio::sync::mpsc::unbounded_channel::<SubscriptionEvent>();
+  let (workspace_send, mut workspace_recv) = tokio_mpsc::unbounded_channel::<SubscriptionEvent>();
   let workspace_task = tokio::task::spawn(async move {
     let mut workspace_actor = WorkspaceActor::default();
     while let Some(event) = workspace_recv.recv().await {
@@ -42,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
   });
 
-  let (sim_send, mut sim_recv) = tokio::sync::mpsc::unbounded_channel::<SimulationEvent>();
+  let (sim_send, mut sim_recv) = tokio_mpsc::unbounded_channel::<SimulationEvent>();
   let replication_task = tokio::task::spawn(async move {
     let mut simulation_actor = SimulationActor::default();
     while let Some(event) = sim_recv.recv().await {
@@ -50,6 +54,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         break;
       }
       simulation_actor.receive(event);
+    }
+  });
+
+  let (download_send, mut download_receive) = tokio_mpsc::unbounded_channel::<DownloadEvent>();
+  let workspace_task = tokio::task::spawn(async move {
+    let mut download_manager = DownloadsActor::default();
+    while let Some(event) = download_receive.recv().await {
+      if matches!(event, DownloadEvent::ApplicationClosing) {
+        break;
+      }
+      download_manager.receive(event);
     }
   });
 
@@ -73,7 +88,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   //   .await;
   // health_reporter.set_serving::<VirtualWorkspacesServer<WorkspaceServer>>().await;
   let addr = format!("0.0.0.0:{}", PORT).parse()?;
-  let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone());
+  let server = WorkspaceServer::new(
+    workspace_send.clone(),
+    sim_send.clone(),
+    download_send.clone(),
+  );
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
   Server::builder()
     // .tls_config(ServerTlsConfig::new()
@@ -88,6 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   drop(sim_send);
   drop(workspace_send);
+  drop(download_send);
 
   workspace_task.await?;
   replication_task.await?;
