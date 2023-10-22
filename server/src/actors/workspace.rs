@@ -7,7 +7,6 @@ use sinnergasm::protos as msg;
 
 const MAXIMUM_BUFFER_SIZE: u64 = 16384;
 
-
 pub(crate) enum SubscriptionEvent {
   Subscribe(
     ids::WorkspaceName,
@@ -76,20 +75,14 @@ impl WorkspaceActor {
       SubscriptionEvent::DownloadRequested(workspace_name, initiate_request) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some(uploader) = device_map.devices.get(&initiate_request.upload_device) {
-            if let Err(err) = uploader.send(
-              msg::WorkspaceEvent {
-                event_type: Some(
-                  msg::workspace_event::EventType::DownloadRequest(
-                    msg::UploadRequested {
-                      file_path: initiate_request.file_path.clone(),
-                      buffer_size: initiate_request.buffer_size.map_or_else(
-                        || 4096, |x| std::cmp::max(x, MAXIMUM_BUFFER_SIZE)
-                      ),
-                    }
-                  )
-                ),
-              }
-            ) {
+            if let Err(err) = uploader.send(msg::WorkspaceEvent {
+              event_type: Some(msg::workspace_event::EventType::DownloadRequest(msg::UploadRequested {
+                file_path: initiate_request.file_path.clone(),
+                buffer_size: initiate_request
+                  .buffer_size
+                  .map_or_else(|| 4096, |x| std::cmp::max(x, MAXIMUM_BUFFER_SIZE)),
+              })),
+            }) {
               println!("Failed to send download request to uploader: {:?}", err);
             }
           } else {
@@ -98,7 +91,7 @@ impl WorkspaceActor {
         } else {
           println!("No workspace listeners for workspace: {:?}", workspace_name);
         }
-      },
+      }
       SubscriptionEvent::ApplicationClosing => {
         self.listeners.clear();
       }

@@ -131,7 +131,7 @@ impl DownloadsActor {
       }
       DownloadEvent::ApplicationClosing => {
         self.connections.clear();
-      },
+      }
     }
   }
 }

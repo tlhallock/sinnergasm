@@ -40,12 +40,10 @@ impl WorkspaceServer {
             name: "desktop".to_string(),
             controller: true,
             download_directory: "/work/sinnergy/downloads".to_string(),
-            files: vec![
-              msg::SharedFile {
-                file_path: "/work/ProjectsForFun/rust-synergy/seperate/target/release/simulate".into(),
-                size: None,
-              }
-            ],
+            files: vec![msg::SharedFile {
+              file_path: "/work/ProjectsForFun/rust-synergy/seperate/target/release/simulate".into(),
+              size: None,
+            }],
           },
           msg::Device {
             name: "laptop".to_string(),

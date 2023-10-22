@@ -19,8 +19,8 @@ use tonic::{metadata::MetadataValue, Request, Status};
 use sinnergasm::options::read_token;
 use sinnergasm::options::PORT;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspacesServer;
-use tonic_health::ServingStatus;
 use tokio::sync::mpsc as tokio_mpsc;
+use tonic_health::ServingStatus;
 
 use crate::workspace_server::WorkspaceServer;
 
@@ -88,11 +88,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   //   .await;
   // health_reporter.set_serving::<VirtualWorkspacesServer<WorkspaceServer>>().await;
   let addr = format!("0.0.0.0:{}", PORT).parse()?;
-  let server = WorkspaceServer::new(
-    workspace_send.clone(),
-    sim_send.clone(),
-    download_send.clone(),
-  );
+  let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone(), download_send.clone());
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
   Server::builder()
     // .tls_config(ServerTlsConfig::new()
