@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   });
 
   let (download_send, mut download_receive) = tokio_mpsc::unbounded_channel::<DownloadEvent>();
-  let workspace_task = tokio::task::spawn(async move {
+  let download_task = tokio::task::spawn(async move {
     let mut download_manager = DownloadsActor::default();
     while let Some(event) = download_receive.recv().await {
       if matches!(event, DownloadEvent::ApplicationClosing) {
@@ -107,6 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
   workspace_task.await?;
   replication_task.await?;
+  download_task.await?;
 
   Ok(())
 }

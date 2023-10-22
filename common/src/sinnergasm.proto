@@ -470,8 +470,10 @@ message SharedFileChunk {
 }
 
 message UploadRequest {
-  InitiateUpload initiate = 1;
-  SharedFileChunk chunk = 2;
+  oneof type {
+    InitiateUpload initiate = 1;
+    SharedFileChunk chunk = 2;
+  }
 }
 
 message InitiateUpload {

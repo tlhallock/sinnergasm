@@ -1,19 +1,35 @@
-use core::panic;
 use std::collections::BTreeMap;
 
-use tokio::sync::mpsc::UnboundedReceiver as Receiver;
 use tokio::sync::mpsc::UnboundedSender as Sender;
 
-use crate::actors::device_map::DeviceMap;
 use crate::common as ids;
 use sinnergasm::protos as msg;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct DownloadKey {
-  workspace: ids::WorkspaceName,
-  download_device: ids::DeviceName,
-  upload_device: ids::DeviceName,
-  shared_file_id: ids::SharedFileId,
+  pub(crate) workspace: ids::WorkspaceName,
+  pub(crate) download_device: ids::DeviceName,
+  pub(crate) upload_device: ids::DeviceName,
+  pub(crate) file_path: String,
+}
+
+impl DownloadKey {
+  pub(crate) fn new(initiate: &msg::InitiateUpload) -> Self {
+    Self {
+      workspace: initiate.workspace.clone(),
+      download_device: initiate.download_device.clone(),
+      upload_device: initiate.upload_device.clone(),
+      file_path: initiate.file_path.clone(),
+    }
+  }
+  pub(crate) fn new2(initiate: &msg::InitiateDownload) -> Self {
+    Self {
+      workspace: initiate.workspace.clone(),
+      download_device: initiate.download_device.clone(),
+      upload_device: initiate.upload_device.clone(),
+      file_path: initiate.file_path.clone(),
+    }
+  }
 }
 
 pub(crate) enum DownloadEvent {

@@ -1,7 +1,7 @@
 use futures::stream::StreamExt;
 use tokio::sync::mpsc;
 
-use crate::actors::download_manager::DownloadEvent;
+use crate::actors::download_manager::{DownloadEvent, DownloadKey};
 use crate::actors::simulate::SimulationEvent;
 use crate::actors::workspace::SubscriptionEvent;
 use sinnergasm::protos as msg;
@@ -309,12 +309,115 @@ impl VirtualWorkspaces for WorkspaceServer {
     &self,
     request: tonic::Request<tonic::Streaming<msg::DownloadRequest>>,
   ) -> std::result::Result<tonic::Response<Self::DownloadFileStream>, tonic::Status> {
-    return Err(tonic::Status::internal("Not implemented"));
+    let mut stream = request.into_inner();
+    if let Some(Ok(msg::DownloadRequest {
+      r#type: Some(msg::download_request::Type::Initiate(initiate_request)),
+    })) = stream.next().await
+    {
+      let (sender, receiver) = mpsc::unbounded_channel::<msg::DownloadResponse>();
+      let download_key = DownloadKey::new2(&initiate_request);
+
+      if let Err(err) = self
+        .download_sender
+        .send(DownloadEvent::CreateConnection(download_key.clone(), sender))
+      {
+        return Err(tonic::Status::from_error(Box::new(err)));
+      }
+
+      if let Err(err) = self.workspace_sender.send(SubscriptionEvent::DownloadRequested(
+        initiate_request.workspace.clone(),
+        initiate_request,
+      )) {
+        // The connection is still present...
+        return Err(tonic::Status::from_error(Box::new(err)));
+      }
+
+      let download_sender = self.download_sender.clone();
+      tokio::task::spawn(async move {
+        while let Some(req) = stream.next().await {
+          if let Ok(msg::DownloadRequest {
+            r#type: Some(download_request),
+          }) = req
+          {
+            match download_request {
+              msg::download_request::Type::Initiate(_) => {
+                eprintln!("Initiate message should only be sent once");
+              }
+              msg::download_request::Type::Request(chunk_request) => {
+                if let Err(err) = download_sender.send(DownloadEvent::RequestFileChunk(
+                  download_key.clone(),
+                  chunk_request.offset,
+                )) {
+                  println!("Failed to send download data to download manager: {:?}", err);
+                }
+              }
+              msg::download_request::Type::Complete(_) => {
+                if let Err(err) = download_sender.send(DownloadEvent::DownloadComplete(download_key.clone())) {
+                  println!("Failed to send download complete to download manager: {:?}", err);
+                }
+              }
+            }
+          } else {
+            println!("Invalid download message");
+          }
+        }
+      });
+
+      let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
+      Ok(tonic::Response::new(Box::pin(response_stream)))
+    } else {
+      return Err(tonic::Status::aborted("First message must be initiate"));
+    }
   }
+
   async fn upload_file(
     &self,
     request: tonic::Request<tonic::Streaming<msg::UploadRequest>>,
   ) -> std::result::Result<tonic::Response<Self::UploadFileStream>, tonic::Status> {
-    return Err(tonic::Status::internal("Not implemented"));
+    let mut stream = request.into_inner();
+    if let Some(Ok(msg::UploadRequest {
+      r#type: Some(msg::upload_request::Type::Initiate(initiate_request)),
+    })) = stream.next().await
+    {
+      let (sender, receiver) = mpsc::unbounded_channel::<msg::UploadResponse>();
+      let download_key = DownloadKey::new(&initiate_request);
+      if let Err(err) = self.download_sender.send(DownloadEvent::ConnectUploader(
+        download_key.clone(),
+        sender,
+        initiate_request,
+      )) {
+        return Err(tonic::Status::from_error(Box::new(err)));
+      }
+
+      let download_sender = self.download_sender.clone();
+      tokio::task::spawn(async move {
+        while let Some(req) = stream.next().await {
+          if let Ok(msg::UploadRequest {
+            r#type: Some(upload_request),
+          }) = req
+          {
+            match upload_request {
+              msg::upload_request::Type::Initiate(_) => {
+                eprintln!("Initiate message should only be sent once");
+              }
+              msg::upload_request::Type::Chunk(chunk_request) => {
+                if let Err(err) =
+                  download_sender.send(DownloadEvent::SendFileChunk(download_key.clone(), chunk_request))
+                {
+                  println!("Failed to send upload chunk request to download manager: {:?}", err);
+                }
+              }
+            }
+          } else {
+            println!("Invalid download message");
+          }
+        }
+      });
+
+      let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
+      Ok(tonic::Response::new(Box::pin(response_stream)))
+    } else {
+      return Err(tonic::Status::aborted("First message must be initiate"));
+    }
   }
 }
