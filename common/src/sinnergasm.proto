@@ -232,8 +232,9 @@ message DeviceDisconnected {
 }
 
 message UploadRequested {
-  string file_path = 1;
-  uint64 buffer_size = 2;
+  string download_device = 1;
+  string file_path = 2;
+  optional uint64 buffer_size = 3;
 }
 
 //////////////////////
@@ -462,8 +463,10 @@ message DownloadResponse {
 
 message DownloadInitated {
   uint64 number_of_chunks = 1;
-  string checksum = 2;
+  uint64 buffer_size = 2;
+  string checksum = 3;
 }
+
 message SharedFileChunk {
   uint64 offset = 1;
   bytes data = 2;
@@ -481,8 +484,10 @@ message InitiateUpload {
   string download_device = 2;
   string upload_device = 3;
   string file_path = 4;
-  string checksum = 5;
-  uint64 number_of_chunks = 6;
+  uint64 buffer_size = 5;
+  string checksum = 6;
+  uint64 number_of_chunks = 7;
+  string permissions = 8;
 }
 
 

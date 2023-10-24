@@ -77,10 +77,11 @@ impl WorkspaceActor {
           if let Some(uploader) = device_map.devices.get(&initiate_request.upload_device) {
             if let Err(err) = uploader.send(msg::WorkspaceEvent {
               event_type: Some(msg::workspace_event::EventType::DownloadRequest(msg::UploadRequested {
+                download_device: initiate_request.download_device.clone(),
                 file_path: initiate_request.file_path.clone(),
                 buffer_size: initiate_request
                   .buffer_size
-                  .map_or_else(|| 4096, |x| std::cmp::max(x, MAXIMUM_BUFFER_SIZE)),
+                  .map(|x| std::cmp::max(x, MAXIMUM_BUFFER_SIZE)),
               })),
             }) {
               println!("Failed to send download request to uploader: {:?}", err);

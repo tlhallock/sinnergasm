@@ -18,6 +18,7 @@ pub enum SubscriptionEvent {
   Targetted,
   Untargetted,
   RequestTarget(String),
+  BeginUpload(msg::UploadRequested),
 }
 
 #[derive(Debug, Clone)]

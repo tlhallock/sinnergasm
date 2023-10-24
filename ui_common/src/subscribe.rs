@@ -31,19 +31,34 @@ pub async fn subscribe_to_workspace(
     sender.send(events::AppEvent::target(options.device.clone()))?;
   }
 
-  while let Some(message) = subscription.message().await? {
-    println!("Subscription message: {:?}", message);
-    if let Some(msg::workspace_event::EventType::Targetted(msg::Targetted { clipboard })) = message.clone().event_type {
-      println!("Subscription message targetted: clipboard = {:?}", clipboard);
-      if let Some(clipboard) = clipboard {
-        ctx.set_contents(clipboard).expect("Unable to set clipboard");
+  while let Some(msg::WorkspaceEvent {
+    event_type: Some(event_type),
+  }) = subscription.message().await?
+  {
+    println!("Subscription message: {:?}", event_type);
+    match event_type {
+      msg::workspace_event::EventType::Targetted(msg::Targetted { clipboard }) => {
+        // This should just be another clipboard listener...
+        println!("Targetted, clipboard = {:?}", &clipboard);
+        if let Some(clipboard) = clipboard {
+          ctx.set_contents(clipboard).expect("Unable to set clipboard");
+        }
+        sender.send(events::AppEvent::targetted())?;
       }
-      sender.send(events::AppEvent::targetted())?;
-    } else if let Some(msg::workspace_event::EventType::Untargetted(msg::Untargetted { device: _ })) =
-      message.clone().event_type
-    {
-      println!("Subscription message untargetted");
-      sender.send(events::AppEvent::untargetted())?;
+      msg::workspace_event::EventType::Untargetted(msg::Untargetted { device: _ }) => {
+        println!("Untargetted");
+        sender.send(events::AppEvent::untargetted())?;
+      }
+      msg::workspace_event::EventType::DownloadRequest(upload_request) => {
+        println!("Received request to upload {:?}", upload_request);
+        sender.send(events::AppEvent::SubscriptionEvent(
+          events::SubscriptionEvent::BeginUpload(upload_request),
+        ))?;
+      }
+      msg::workspace_event::EventType::DeviceConnected(_)
+      | msg::workspace_event::EventType::DeviceDisconnected(_)
+      | msg::workspace_event::EventType::TargetUpdate(_)
+      | msg::workspace_event::EventType::ConfigurationUpdate(_) => {}
     }
   }
   Ok(())

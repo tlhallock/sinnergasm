@@ -93,6 +93,7 @@ impl DownloadsActor {
             r#type: Some(msg::download_response::Type::Initated(msg::DownloadInitated {
               number_of_chunks: request.number_of_chunks,
               checksum: request.checksum.clone(),
+              buffer_size: request.buffer_size,
             })),
           }) {
             eprintln!("Error sending download initiated to download sender: {:?}", err);
