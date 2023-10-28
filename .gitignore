@@ -14,3 +14,10 @@ infra/.terraform/providers/registry.terraform.io/hashicorp/null/3.2.1/linux_amd6
 infra/sinnergy-sources.zip
 sinnergy-sources.zip
 Cargo.lock
+resources/ca.key
+resources/ca.srl
+resources/server.crt
+resources/server.csr
+resources/server.key
+resources/server.pem
+resources/server_req.conf
