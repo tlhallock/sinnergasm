@@ -14,12 +14,13 @@ pub async fn spawn_download_task(
   shared_file: msg::SharedFile,
   options: Arc<Options>,
 ) -> tokio::task::JoinHandle<anyhow::Result<()>> {
-  print!("Spawning download task");
+  println!("Spawning download task");
   let task = tokio::spawn(async move {
     println!("Inside download task");
     if let Err(err) = download_file(client, upload_device, shared_file, options).await {
       eprintln!("Error downloading file: {}", err);
     }
+    println!("Download task finished");
     Ok(())
   });
   return task;
@@ -31,9 +32,13 @@ async fn download_file(
   shared_file: msg::SharedFile,
   options: Arc<Options>,
 ) -> Result<(), anyhow::Error> {
+  println!("Inside download_file");
   let (sender, receiver) = tokio_mpsc::unbounded_channel();
+  println!("Spawned thread: creating receiver stream");
   let receiver_stream = UnboundedReceiverStream::new(receiver);
+  println!("Spawned thread: creating download stream");
   let mut stream = client.download_file(receiver_stream).await?.into_inner();
+  println!("Spawned thread: joining paths");
   let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
 
   println!("Spawned thread: sending download request");

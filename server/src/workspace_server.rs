@@ -308,12 +308,15 @@ impl VirtualWorkspaces for WorkspaceServer {
     request: tonic::Request<tonic::Streaming<msg::DownloadRequest>>,
   ) -> std::result::Result<tonic::Response<Self::DownloadFileStream>, tonic::Status> {
     let mut stream = request.into_inner();
+    println!("Download file request");
     if let Some(Ok(msg::DownloadRequest {
       r#type: Some(msg::download_request::Type::Initiate(initiate_request)),
     })) = stream.next().await
     {
       let (sender, receiver) = mpsc::unbounded_channel::<msg::DownloadResponse>();
       let download_key = DownloadKey::new2(&initiate_request);
+
+      println!("Initiating download for {:?}", download_key);
 
       if let Err(err) = self
         .download_sender
@@ -322,6 +325,8 @@ impl VirtualWorkspaces for WorkspaceServer {
         return Err(tonic::Status::from_error(Box::new(err)));
       }
 
+      println!("Sending download requested to workspace manager");
+
       if let Err(err) = self.workspace_sender.send(SubscriptionEvent::DownloadRequested(
         initiate_request.workspace.clone(),
         initiate_request,
@@ -329,6 +334,8 @@ impl VirtualWorkspaces for WorkspaceServer {
         // The connection is still present...
         return Err(tonic::Status::from_error(Box::new(err)));
       }
+
+      println!("download: handling other messages");
 
       let download_sender = self.download_sender.clone();
       tokio::task::spawn(async move {
@@ -342,6 +349,7 @@ impl VirtualWorkspaces for WorkspaceServer {
                 eprintln!("Initiate message should only be sent once");
               }
               msg::download_request::Type::Request(chunk_request) => {
+                println!("Sending download chunk request to download manager {}", chunk_request.offset);
                 if let Err(err) = download_sender.send(DownloadEvent::RequestFileChunk(
                   download_key.clone(),
                   chunk_request.offset,
@@ -350,6 +358,7 @@ impl VirtualWorkspaces for WorkspaceServer {
                 }
               }
               msg::download_request::Type::Complete(_) => {
+                println!("Sending download complete to download manager");
                 if let Err(err) = download_sender.send(DownloadEvent::DownloadComplete(download_key.clone())) {
                   println!("Failed to send download complete to download manager: {:?}", err);
                 }
