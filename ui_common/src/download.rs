@@ -181,6 +181,8 @@ async fn download_file(
             },
             Err(err) => eprintln!("Unable to send download requests: {:?}", err),
           }
+
+          println!("Download state: {:?}", downloads);
         }
       }
     }
