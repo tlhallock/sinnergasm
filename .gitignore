@@ -22,4 +22,4 @@ keys/server.key
 keys/server.pem
 keys/server_req.conf
 container/keys/
-keys/token.txt
+# keys/token.txt
