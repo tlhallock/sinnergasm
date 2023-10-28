@@ -8,7 +8,7 @@ name = "simulate"
 path = "src/simulate.rs"
 
 [dependencies]
-sinnergism_common = { path = "../common", features = ["use-rdev"] }
+sinnergism_common = { path = "../common" }
 sinnergism_ui_common = { path = "../ui_common" }
 
 enigo = "0.1.2"

@@ -1,4 +1,3 @@
-extern crate rdev;
 
 use tonic::transport::Certificate;
 use tonic::transport::Channel;

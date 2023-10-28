@@ -5,3 +5,4 @@ pub mod subscribe;
 pub mod target;
 pub mod translation;
 pub mod upload;
+pub mod errors;

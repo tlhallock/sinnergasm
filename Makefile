@@ -16,7 +16,7 @@ key:
 		-extensions v3_end
 	cat keys/server.crt keys/server.key > keys/server.pem
 	cp keys/server.pem ./container/keys
-	cp keys/ca.crt ./container/keys
+	cp keys/server.key ./container/keys
 
 build:
 	podman build -f container/build.containerfile -t sinnergasm/serve-build
@@ -28,14 +28,15 @@ build:
 	podman build -f container/serve.containerfile -t sinnergasm/serve container
 
 bump_version:
-	SINNERGY_SERVE_VERSION=$$(tar c simulator/ controller/ server/ common/ | sha1sum | sed 's/ .*//') && \
-	echo -n $$SINNERGY_SERVE_VERSION > ./container/version.txt
-	echo -n $$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10 ; echo '') >> ./container/version.txt
-	cat ./container/version.txt
-	echo -n "0.0.2" > ./container/version.txt
+	echo -n "0.0.3" > ./container/version.txt
 
-	# echo "1.2.3" | awk -F. '{$NF++; print $1"."$2"."$NF}'
-
+	# SINNERGY_SERVE_VERSION=$$(tar c simulator/ controller/ server/ common/ | sha1sum | sed 's/ .*//') && \
+	# echo -n $$SINNERGY_SERVE_VERSION > ./container/version.txt
+	# echo -n $$(tr -dc A-Za-z0-9 </dev/urandom | head -c 10 ; echo '') >> ./container/version.txt
+	# cat ./container/version.txt
+	# mv container/version.txt container/version.txt.old
+	# cat container/version.txt.old | awk -F. '{$NF++; print $1"."$2"."$NF}' > ./container/version.txt
+	# rm container/version.txt.old
 
 push_image: bump_version build
 	aws ecr get-login-password --region us-west-1 | \

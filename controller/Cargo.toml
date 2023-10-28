@@ -8,7 +8,7 @@ name = "control"
 path = "src/control.rs"
 
 [dependencies]
-sinnergism_common = { path = "../common", features = ["use-rdev"] }
+sinnergism_common = { path = "../common" }
 sinnergism_ui_common = { path = "../ui_common" }
 
 rdev = "0.5.3"

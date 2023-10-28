@@ -1,5 +1,7 @@
-use sinnergasm::{errors::RDevError, grpc_client::GrpcClient, options::Options};
 
+use ui_common::errors::RDevError;
+use sinnergasm::grpc_client::GrpcClient;
+use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
