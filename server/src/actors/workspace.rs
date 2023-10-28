@@ -75,6 +75,7 @@ impl WorkspaceActor {
       SubscriptionEvent::DownloadRequested(workspace_name, initiate_request) => {
         if let Some(device_map) = self.listeners.get_mut(&workspace_name) {
           if let Some(uploader) = device_map.devices.get(&initiate_request.upload_device) {
+            println!("Sending download request to uploader");
             if let Err(err) = uploader.send(msg::WorkspaceEvent {
               event_type: Some(msg::workspace_event::EventType::DownloadRequest(msg::UploadRequested {
                 download_device: initiate_request.download_device.clone(),

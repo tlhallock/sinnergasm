@@ -60,6 +60,8 @@ async fn download_file(
 
   let mut file = std::fs::File::create(&target_location)?;
 
+  println!("Spawned thread: created file");
+
   if let Some(msg::DownloadResponse {
     r#type:
       Some(msg::download_response::Type::Initated(msg::DownloadInitated {
@@ -69,6 +71,7 @@ async fn download_file(
       })),
   }) = stream.message().await?
   {
+    println!("Received download initiated message");
     let mut chunks_received = vec![false; number_of_chunks as usize];
     // let mut chunks_requested =
 
@@ -76,6 +79,7 @@ async fn download_file(
       r#type: Some(event_type),
     }) = stream.message().await?
     {
+      println!("Received message {:?}", event_type);
       match event_type {
         msg::download_response::Type::Initated(_) => {
           panic!("Download should only be initiated once");

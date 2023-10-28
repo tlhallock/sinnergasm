@@ -30,21 +30,32 @@ async fn upload_file(
   request: msg::UploadRequested,
   options: Arc<Options>,
 ) -> Result<(), anyhow::Error> {
+  println!("Uploading file {:?}", request);
   let file_path = std::path::Path::new(&options.shared_folder).join(&request.relative_path);
 
+  println!("Computing hash of file");
   let checksum = compute_hash(&file_path)?;
-
+  println!("Hash of file is {}", checksum);
   let mut file = std::fs::File::open(&file_path)?;
+  println!("Opened file {:?}", file_path);
   let metadata = file.metadata()?;
+  println!("File metadata: {:?}", metadata);
   let permissions = format!("{:?}", metadata.permissions());
+  println!("File permissions: {:?}", permissions);
 
   let buffer_size = request.buffer_size.unwrap_or(4096);
   let number_of_chunks = metadata.len().div_ceil(buffer_size);
-
+  println!(
+    "File size: {}, buffer size: {}, number of chunks: {}",
+    metadata.len(),
+    buffer_size,
+    number_of_chunks
+  );
+  println!("Creating channel");
   let (sender, receiver) = tokio_mpsc::unbounded_channel();
+  println!("Creating receiver stream");
   let receiver_stream = UnboundedReceiverStream::new(receiver);
-  let mut stream = client.upload_file(receiver_stream).await?.into_inner();
-
+  println!("Sending upload request");
   sender.send(msg::UploadRequest {
     r#type: Some(msg::upload_request::Type::Initiate(msg::InitiateUpload {
       workspace: options.workspace.clone(),
@@ -58,10 +69,15 @@ async fn upload_file(
     })),
   })?;
 
+  println!("Awaiting upload response");
+  let mut stream = client.upload_file(receiver_stream).await?.into_inner();
+
+  println!("Sending chunks");
   while let Some(msg::UploadResponse {
     r#type: Some(event_type),
   }) = stream.message().await?
   {
+    println!("Received upload response: {:?}", event_type);
     match event_type {
       msg::upload_response::Type::Request(msg::ChunkRequest { offset }) => {
         let byte_offset = offset * buffer_size;
@@ -102,9 +118,11 @@ pub async fn listen_for_uploads(
         return Ok(());
       }
       events::AppEvent::SubscriptionEvent(events::SubscriptionEvent::BeginUpload(request)) => {
+        println!("Received request to upload {:?}", request);
         let client_clone = client.clone();
         let options_clone = options.clone();
         let _ = tokio::task::spawn(async move {
+          println!("within spawn: Uploading file");
           if let Err(err) = upload_file(client_clone, request, options_clone).await {
             eprintln!("Error uploading file: {}", err);
           }

@@ -399,6 +399,7 @@ impl VirtualWorkspaces for WorkspaceServer {
       let download_sender = self.download_sender.clone();
       tokio::task::spawn(async move {
         while let Some(req) = stream.next().await {
+          println!("Re download request {:?}", req);
           if let Ok(msg::UploadRequest {
             r#type: Some(upload_request),
           }) = req
@@ -416,7 +417,7 @@ impl VirtualWorkspaces for WorkspaceServer {
               }
             }
           } else {
-            println!("Invalid download message");
+            println!("Invalid upload message");
           }
         }
       });
