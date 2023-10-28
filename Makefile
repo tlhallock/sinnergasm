@@ -18,7 +18,6 @@ key:
 	cp keys/server.pem ./container/keys
 	cp keys/ca.crt ./container/keys
 
-
 build:
 	podman build -f container/build.containerfile -t sinnergasm/serve-build
 	podman run --rm \
