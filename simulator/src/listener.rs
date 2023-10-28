@@ -1,10 +1,9 @@
-
-use ui_common::errors::RDevError;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
+use ui_common::errors::RDevError;
 use ui_common::events;
 
 pub(crate) fn listen_to_system(sender: Sender<events::AppEvent>) -> Result<(), RDevError> {

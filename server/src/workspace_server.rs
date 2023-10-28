@@ -3,7 +3,7 @@ use tokio::sync::mpsc;
 
 use crate::actors::download_manager::{DownloadEvent, DownloadKey};
 use crate::actors::simulate::SimulationEvent;
-use crate::actors::workspace::SubscriptionEvent;
+use crate::actors::workspace::{SubscriptionEvent, self};
 use sinnergasm::protos as msg;
 use sinnergasm::protos::virtual_workspaces_server::VirtualWorkspaces;
 use std::pin::Pin;
@@ -417,9 +417,7 @@ impl VirtualWorkspaces for WorkspaceServer {
               }
               msg::upload_request::Type::Chunk(chunk) => {
                 println!("Received chunk {:?}", chunk.offset);
-                if let Err(err) =
-                  download_sender.send(DownloadEvent::SendFileChunk(download_key.clone(), chunk))
-                {
+                if let Err(err) = download_sender.send(DownloadEvent::SendFileChunk(download_key.clone(), chunk)) {
                   println!("Failed to send upload chunk request to download manager: {:?}", err);
                 }
               }
@@ -436,5 +434,43 @@ impl VirtualWorkspaces for WorkspaceServer {
     } else {
       return Err(tonic::Status::aborted("First message must be initiate"));
     }
+  }
+
+  async fn share_file(
+    &self,
+    request: tonic::Request<msg::ShareFileRequest>,
+  ) -> std::result::Result<tonic::Response<msg::ShareFileResponse>, tonic::Status> {
+    return Ok(tonic::Response::new(msg::ShareFileResponse {}));
+  }
+  async fn remove_shared_file(
+    &self,
+    request: tonic::Request<msg::RemoveSharedFileRequest>,
+  ) -> std::result::Result<tonic::Response<msg::RemoveSharedFileResponse>, tonic::Status> {
+    return Ok(tonic::Response::new(msg::RemoveSharedFileResponse {}));
+  }
+  async fn close_workspace(
+    &self,
+    request: tonic::Request<msg::CloseRequest>,
+  ) -> std::result::Result<tonic::Response<msg::CloseResponse>, tonic::Status> {
+    let workspace_name = request.into_inner().workspace;
+
+    if let Err(err) = self.simulation_sender
+      .send(SimulationEvent::WorkspaceClosing(workspace_name.clone()))
+    {
+      eprintln!("Unable to close simulators: {:?}", err);
+    }
+
+    if let Err(err) = self.download_sender
+      .send(DownloadEvent::WorkspaceClosing(workspace_name.clone())) {
+      eprintln!("Unable to close downloads: {:?}", err);
+    }
+
+    if let Err(err) = self.workspace_sender
+      .send(SubscriptionEvent::WorskpaceClosing(workspace_name.clone()))
+      .map_err(|e| tonic::Status::aborted(e.to_string())) {
+      eprintln!("Unable to close subscriptions: {:?}", err);
+    }
+
+    return Ok(tonic::Response::new(msg::CloseResponse {}));
   }
 }

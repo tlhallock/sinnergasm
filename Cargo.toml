@@ -4,6 +4,6 @@ members = [
   "controller",
   "server",
   "simulator",
-  # "cli",
+  "cli",
   "ui_common",
 ]

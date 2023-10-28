@@ -5,7 +5,6 @@
 pub mod grpc_client;
 pub mod options;
 
-
 pub mod protos {
   tonic::include_proto!("sinnergasm"); // The string specified here must match the proto package name
 }

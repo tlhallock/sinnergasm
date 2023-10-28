@@ -38,6 +38,7 @@ pub(crate) enum DownloadEvent {
   RequestFileChunk(DownloadKey, u64),
   SendFileChunk(DownloadKey, msg::SharedFileChunk),
   DownloadComplete(DownloadKey),
+  WorkspaceClosing(ids::WorkspaceName),
   ApplicationClosing,
   // DownloadInitiated(ids::WorkspaceName, ids::DeviceName, ids::SharedFileId),
   // Subscribe(
@@ -79,13 +80,27 @@ pub(crate) struct DownloadsActor {
 impl DownloadsActor {
   pub(crate) fn receive(&mut self, download_event: DownloadEvent) {
     match download_event {
+      DownloadEvent::WorkspaceClosing(workspace_name) => {
+        self
+          .connections
+          .retain(|key, _| {
+            if key.workspace != workspace_name {
+              return true;
+            }
+            // connection.download_sender.send(msg::DownloadInterruped {});
+            // if let Some(sender) = connection.upload_sender.as_ref() {
+            //   sender.send(msg::DownloadInterrupted {});
+            // }
+            return false;
+          });
+      },
       DownloadEvent::CreateConnection(key, download_sender) => {
         println!("Created connection for key {:?}", key);
         let _ = self
           .connections
           .entry(key)
           .or_insert_with(|| DownloadConnection::new(download_sender));
-      }
+      },
       DownloadEvent::ConnectUploader(key, upload_sender, request) => {
         if let Some(connection) = self.connections.get_mut(&key) {
           connection.set_upload_sender(upload_sender);
@@ -104,7 +119,7 @@ impl DownloadsActor {
         } else {
           eprintln!("No connection found for key {:?}", key);
         }
-      }
+      },
       DownloadEvent::RequestFileChunk(key, offset) => {
         if let Some(connection) = self.connections.get_mut(&key) {
           if let Some(upload_sender) = &connection.upload_sender {
@@ -120,7 +135,7 @@ impl DownloadsActor {
         } else {
           eprintln!("No connection found for key {:?}", key);
         }
-      }
+      },
       DownloadEvent::SendFileChunk(key, chunk) => {
         if let Some(connection) = self.connections.get_mut(&key) {
           println!("Sending chunk for key {:?}", key);
@@ -135,7 +150,7 @@ impl DownloadsActor {
         } else {
           eprintln!("No connection found for key {:?}", key);
         }
-      }
+      },
       DownloadEvent::DownloadComplete(key) => {
         if let Some(connection) = self.connections.remove(&key) {
           if let Some(upload_sender) = connection.upload_sender {
@@ -151,10 +166,10 @@ impl DownloadsActor {
         } else {
           eprintln!("No connection found for key {:?}", key);
         }
-      }
+      },
       DownloadEvent::ApplicationClosing => {
         self.connections.clear();
-      }
+      },
     }
   }
 }

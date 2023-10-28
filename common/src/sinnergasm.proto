@@ -9,6 +9,9 @@ service VirtualWorkspaces {
   rpc DeleteWorkspace(DeleteRequest) returns (DeleteResponse);
 
   rpc ConfigureWorkspace(ConfigurationRequest) returns (ConfiguredResponse);
+  rpc ShareFile(ShareFileRequest) returns (ShareFileResponse);
+  rpc RemoveSharedFile(RemoveSharedFileRequest) returns (RemoveSharedFileResponse);
+  rpc CloseWorkspace(CloseRequest) returns (CloseResponse);
 
   rpc TargetDevice(TargetRequest) returns (TargetResponse);
 
@@ -524,3 +527,8 @@ message RemoveSharedFileRequest {
 
 message RemoveSharedFileResponse {}
 
+message CloseRequest {
+  string workspace = 1;
+}
+
+message CloseResponse {}

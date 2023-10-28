@@ -1,4 +1,3 @@
-
 use std::sync::Arc;
 
 use sinnergasm::grpc_client::GrpcClient;
@@ -58,9 +57,7 @@ impl DownloadChunkPool {
       self.downloading.push((next, now));
 
       self.sender.send(msg::DownloadRequest {
-        r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest {
-          offset: next,
-        })),
+        r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest { offset: next })),
       })?;
       num_requested += 1;
     }
