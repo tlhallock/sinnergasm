@@ -57,7 +57,7 @@ async fn send_target_requests(
           Ok(Ok(())) => println!("Task completed successfully"),
           Ok(Err(_)) => println!("Task returned an error"),
           Err(_) => println!("Task panicked"),
-      }
+        }
       }
       events::AppEvent::ControlEvent(_)
       | events::AppEvent::SubscriptionEvent(_)

@@ -108,7 +108,14 @@ async fn main() -> anyhow::Result<()> {
   // TODO: cleanly close the connections...
   die_early();
 
-  let futures = vec![forward_task, target_task, subscribe_task, network_task, flush_task, upload_task];
+  let futures = vec![
+    forward_task,
+    target_task,
+    subscribe_task,
+    network_task,
+    flush_task,
+    upload_task,
+  ];
   futures::future::join_all(futures).await;
 
   anyhow::Ok(())

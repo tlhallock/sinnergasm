@@ -26,7 +26,7 @@ fn print_type_of<T>(_: &T) {
 }
 
 // #[tokio::main]
-#[tokio::main(flavor="multi_thread", worker_threads=10)]
+#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> anyhow::Result<()> {
   let options = Arc::new(Options::new("laptop".into()));
   let client = create_client(&options).await?;

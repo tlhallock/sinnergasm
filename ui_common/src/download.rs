@@ -9,13 +9,11 @@ use std::io::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-
 #[derive(Debug)]
 enum ProgressCheck {
   Complete,
   Requested(usize),
 }
-
 
 #[derive(Debug)]
 struct DownloadChunkPool {
@@ -28,7 +26,11 @@ struct DownloadChunkPool {
 }
 
 impl DownloadChunkPool {
-  fn new(number_of_chunks: usize, parallel_downloads: usize, sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>) -> Self {
+  fn new(
+    number_of_chunks: usize,
+    parallel_downloads: usize,
+    sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>,
+  ) -> Self {
     Self {
       to_download: (0..number_of_chunks).collect(),
       downloading: vec![],
@@ -41,44 +43,39 @@ impl DownloadChunkPool {
   fn set_completed(&mut self, offset: Option<usize>) -> Result<ProgressCheck, anyhow::Error> {
     if let Some(offset) = offset {
       if let Some(index) = self.downloading.iter().position(|&(x, _)| x == offset) {
-          self.downloading.remove(index);
-          self.downloaded.push(offset);
+        self.downloading.remove(index);
+        self.downloaded.push(offset);
       } else {
         panic!("Chunk {} was not being downloaded", offset);
       }
     }
 
+    let mut num_requested = 0;
     let now = std::time::SystemTime::now();
-    let mut next_downloads = vec![];
     while self.downloading.len() < self.parallel_downloads && !self.to_download.is_empty() {
-        let next = self.to_download.remove(0);
-        self.downloading.push((next, now));
-        next_downloads.push(next);
-    }
+      let next = self.to_download.remove(0);
+      self.downloading.push((next, now));
 
-    let num_requesting = next_downloads.len();
-    for next_offset in next_downloads {
       self.sender.send(msg::DownloadRequest {
         r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest {
-          offset: next_offset as u64,
+          offset: next as u64,
         })),
       })?;
+      num_requested += 1;
     }
+
+    println!("Download state: {:?}", self);
 
     if self.to_download.is_empty() && self.downloading.is_empty() {
       self.sender.send(msg::DownloadRequest {
-        r#type: Some(msg::download_request::Type::Complete(msg::DownloadComplete {
-        })),
-        })?;
-        Ok(ProgressCheck::Complete)
+        r#type: Some(msg::download_request::Type::Complete(msg::DownloadComplete {})),
+      })?;
+      Ok(ProgressCheck::Complete)
     } else {
-        Ok(ProgressCheck::Requested(num_requesting))
+      Ok(ProgressCheck::Requested(num_requested))
     }
+  }
 }
-}
-
-
-
 
 pub async fn spawn_download_task(
   client: GrpcClient,
@@ -122,13 +119,12 @@ async fn download_file(
   let mut stream = client.download_file(receiver_stream).await?.into_inner();
   println!("Spawned thread: joining paths");
   let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
-  let target_directory = target_location.parent().expect(
-    format!("Unable to determine parent directory: {:?}", &target_location).as_str(),
-  );
+  let target_directory = target_location
+    .parent()
+    .expect(format!("Unable to determine parent directory: {:?}", &target_location).as_str());
   println!("Spawned thread: creating directory");
-  std::fs::create_dir_all(target_directory).expect(
-    format!("Unable to create directory: {:?}", &target_directory).as_str(),
-  );
+  std::fs::create_dir_all(target_directory)
+    .expect(format!("Unable to create directory: {:?}", &target_directory).as_str());
 
   let mut file = std::fs::File::create(&target_location)?;
 
@@ -145,22 +141,22 @@ async fn download_file(
   {
     println!("Received download initiated message");
     let mut downloads = DownloadChunkPool::new(number_of_chunks as usize, 1, sender);
+    println!("initial state: {:?}", downloads);
     match downloads.set_completed(None) {
       Ok(ProgressCheck::Complete) => {
         eprintln!("Download complete after initial request!!");
       }
       Ok(ProgressCheck::Requested(num_requested)) => {
         println!("Requested initial chunks: {:?}", num_requested);
-      },
+      }
       Err(err) => eprintln!("Unable to send download initial requests: {:?}", err),
     }
+    println!("second state: {:?}", downloads);
 
-    'outer:
-    while let Some(msg::DownloadResponse {
+    'outer: while let Some(msg::DownloadResponse {
       r#type: Some(event_type),
     }) = stream.message().await?
     {
-      println!("Received message {:?}", event_type);
       match event_type {
         msg::download_response::Type::Initated(_) => {
           panic!("Download should only be initiated once");
@@ -178,7 +174,7 @@ async fn download_file(
             }
             Ok(ProgressCheck::Requested(num_requested)) => {
               println!("Requesting chunks: {:?}", num_requested);
-            },
+            }
             Err(err) => eprintln!("Unable to send download requests: {:?}", err),
           }
 

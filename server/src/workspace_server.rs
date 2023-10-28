@@ -349,7 +349,10 @@ impl VirtualWorkspaces for WorkspaceServer {
                 eprintln!("Initiate message should only be sent once");
               }
               msg::download_request::Type::Request(chunk_request) => {
-                println!("Sending download chunk request to download manager {}", chunk_request.offset);
+                println!(
+                  "Sending download chunk request to download manager {}",
+                  chunk_request.offset
+                );
                 if let Err(err) = download_sender.send(DownloadEvent::RequestFileChunk(
                   download_key.clone(),
                   chunk_request.offset,
