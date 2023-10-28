@@ -14,7 +14,9 @@ pub async fn spawn_download_task(
   shared_file: msg::SharedFile,
   options: Arc<Options>,
 ) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+  print!("Spawning download task");
   let task = tokio::spawn(async move {
+    println!("Inside download task");
     if let Err(err) = download_file(client, upload_device, shared_file, options).await {
       eprintln!("Error downloading file: {}", err);
     }
