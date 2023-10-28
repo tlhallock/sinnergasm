@@ -25,7 +25,6 @@ fn print_type_of<T>(_: &T) {
   println!("{}", std::any::type_name::<T>());
 }
 
-// #[tokio::main]
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> anyhow::Result<()> {
   let options = Arc::new(Options::new("laptop".into()));

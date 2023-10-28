@@ -27,7 +27,7 @@ use tonic::transport::Identity;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let subscriber = FmtSubscriber::builder().with_max_level(Level::INFO).finish();
   tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");

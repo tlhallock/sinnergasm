@@ -62,8 +62,6 @@ impl DownloadChunkPool {
       num_requested += 1;
     }
 
-    println!("Download state: {:?}", self);
-
     if self.to_download.is_empty() && self.downloading.is_empty() {
       self.sender.send(msg::DownloadRequest {
         r#type: Some(msg::download_request::Type::Complete(msg::DownloadComplete {})),
@@ -140,7 +138,7 @@ async fn download_file(
   {
     println!("Received download initiated message");
     let mut downloads = DownloadChunkPool::new(number_of_chunks, 1, sender);
-    println!("initial state: {:?}", downloads);
+
     match downloads.set_completed(None) {
       Ok(ProgressCheck::Complete) => {
         eprintln!("Download complete after initial request!!");
@@ -150,7 +148,6 @@ async fn download_file(
       }
       Err(err) => eprintln!("Unable to send download initial requests: {:?}", err),
     }
-    println!("second state: {:?}", downloads);
 
     'outer: while let Some(msg::DownloadResponse {
       r#type: Some(event_type),
@@ -176,17 +173,16 @@ async fn download_file(
             }
             Err(err) => eprintln!("Unable to send download requests: {:?}", err),
           }
-
-          println!("Download state: {:?}", downloads);
         }
       }
     }
 
     let actual_checksum = crate::upload::compute_hash(&target_location)?;
-    println!(
-      "Expected checksum {}. Found checksum {}",
-      expected_checksum, actual_checksum
-    );
+    if expected_checksum == actual_checksum {
+      println!("Checksum {} matches.", expected_checksum);
+    } else {
+      eprintln!("Checksum mismatch! Expected: {}, found: {}", expected_checksum, actual_checksum);
+    }
   } else {
     panic!("First message should be the upload has been initiated.");
   }
