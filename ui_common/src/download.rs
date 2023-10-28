@@ -50,6 +50,13 @@ async fn download_file(
   let mut stream = client.download_file(receiver_stream).await?.into_inner();
   println!("Spawned thread: joining paths");
   let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
+  let target_directory = target_location.parent().expect(
+    format!("Unable to determine parent directory: {:?}", &target_location).as_str(),
+  );
+  println!("Spawned thread: creating directory");
+  std::fs::create_dir_all(target_directory).expect(
+    format!("Unable to create directory: {:?}", &target_directory).as_str(),
+  );
 
   let mut file = std::fs::File::create(&target_location)?;
 
