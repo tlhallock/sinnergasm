@@ -96,6 +96,7 @@ impl DownloadsActor {
               number_of_chunks: request.number_of_chunks,
               checksum: request.checksum.clone(),
               buffer_size: request.buffer_size,
+              permissions: request.permissions.clone(),
             })),
           }) {
             eprintln!("Error sending download initiated to download sender: {:?}", err);

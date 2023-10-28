@@ -40,8 +40,8 @@ async fn upload_file(
   println!("Opened file {:?}", file_path);
   let metadata = file.metadata()?;
   println!("File metadata: {:?}", metadata);
-  let permissions = format!("{:?}", metadata.permissions());
-  println!("File permissions: {:?}", permissions);
+  let permissions = metadata.permissions();
+  println!("Ignoring file permissions: {:?}", permissions);
 
   let buffer_size = request.buffer_size.unwrap_or(4096);
   let number_of_chunks = metadata.len().div_ceil(buffer_size);
@@ -65,7 +65,7 @@ async fn upload_file(
       buffer_size,
       checksum,
       number_of_chunks,
-      permissions,
+      permissions: None,
     })),
   })?;
 

@@ -15,7 +15,7 @@ cargo-limit = "0.0.10"
 prost = "0.11.9"
 rdev = { version = "0.5.3", optional = true }
 anyhow = "1.0.75"
-tonic = "0.9.2"
+tonic = { version = "0.9.2", features = ["tls"]}
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread", "sync"] }
 tokio-stream = "0.1.14"
 

@@ -12,7 +12,7 @@ sinnergism_common = { path = "../common", features = ["use-rdev"] }
 sinnergism_ui_common = { path = "../ui_common" }
 
 enigo = "0.1.2"
-tonic = "0.9.2"
+tonic = { version = "0.9.2", features = ["tls"]}
 # tonic = "0.10.1"
 tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread", "sync"] }
 tokio-stream = "0.1.14"

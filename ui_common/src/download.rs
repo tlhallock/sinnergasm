@@ -137,6 +137,7 @@ async fn download_file(
         number_of_chunks,
         checksum: expected_checksum,
         buffer_size,
+        permissions,
       })),
   }) = stream.message().await?
   {

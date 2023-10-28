@@ -464,6 +464,12 @@ message DownloadInitated {
   uint64 number_of_chunks = 1;
   uint64 buffer_size = 2;
   string checksum = 3;
+  optional FilePermissions permissions = 4;
+}
+
+message FilePermissions {
+  bool execute = 1;
+  optional uint32 permissions = 2;
 }
 
 message SharedFileChunk {
@@ -486,7 +492,7 @@ message InitiateUpload {
   uint64 buffer_size = 5;
   string checksum = 6;
   uint64 number_of_chunks = 7;
-  string permissions = 8;
+  optional FilePermissions permissions = 8;
 }
 
 
