@@ -90,6 +90,17 @@ async fn main() -> anyhow::Result<()> {
     anyhow::Ok(())
   });
 
+  // TODO: add this the simulator as well
+  let receiver = sender.subscribe();
+  let client_clone = client.clone();
+  let options_clone = options.clone();
+  let upload_task = tokio::spawn(async move {
+    if let Err(err) = ui_common::upload::listen_for_uploads(receiver, client_clone, options_clone).await {
+      eprintln!("Error listening for uploads: {}", err);
+    }
+    anyhow::Ok(())
+  });
+
   display_devices(client, &options, sender).await?;
 
   println!("Display closed");
@@ -97,7 +108,7 @@ async fn main() -> anyhow::Result<()> {
   // TODO: cleanly close the connections...
   die_early();
 
-  let futures = vec![forward_task, target_task, subscribe_task, network_task, flush_task];
+  let futures = vec![forward_task, target_task, subscribe_task, network_task, flush_task, upload_task];
   futures::future::join_all(futures).await;
 
   anyhow::Ok(())

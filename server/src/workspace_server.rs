@@ -381,13 +381,17 @@ impl VirtualWorkspaces for WorkspaceServer {
     &self,
     request: tonic::Request<tonic::Streaming<msg::UploadRequest>>,
   ) -> std::result::Result<tonic::Response<Self::UploadFileStream>, tonic::Status> {
+    println!("Upload file request");
     let mut stream = request.into_inner();
     if let Some(Ok(msg::UploadRequest {
       r#type: Some(msg::upload_request::Type::Initiate(initiate_request)),
     })) = stream.next().await
     {
+      println!("Initiating upload for {:?}", initiate_request);
       let (sender, receiver) = mpsc::unbounded_channel::<msg::UploadResponse>();
+      println!("Creating download key");
       let download_key = DownloadKey::new(&initiate_request);
+      println!("Download key: {:?}", download_key);
       if let Err(err) = self.download_sender.send(DownloadEvent::ConnectUploader(
         download_key.clone(),
         sender,
@@ -395,6 +399,7 @@ impl VirtualWorkspaces for WorkspaceServer {
       )) {
         return Err(tonic::Status::from_error(Box::new(err)));
       }
+      println!("Sending upload requested to workspace manager");
 
       let download_sender = self.download_sender.clone();
       tokio::task::spawn(async move {
@@ -422,6 +427,7 @@ impl VirtualWorkspaces for WorkspaceServer {
         }
       });
 
+      println!("upload: returning response stream");
       let response_stream = tokio_stream::wrappers::UnboundedReceiverStream::new(receiver).map(Ok::<_, tonic::Status>);
       Ok(tonic::Response::new(Box::pin(response_stream)))
     } else {

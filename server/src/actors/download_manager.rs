@@ -80,6 +80,7 @@ impl DownloadsActor {
   pub(crate) fn receive(&mut self, download_event: DownloadEvent) {
     match download_event {
       DownloadEvent::CreateConnection(key, download_sender) => {
+        println!("Created connection for key {:?}", key);
         let _ = self
           .connections
           .entry(key)
@@ -89,6 +90,7 @@ impl DownloadsActor {
         if let Some(connection) = self.connections.get_mut(&key) {
           connection.set_upload_sender(upload_sender);
 
+          println!("Sending download initiated for key {:?}", key);
           if let Err(err) = connection.download_sender.send(msg::DownloadResponse {
             r#type: Some(msg::download_response::Type::Initated(msg::DownloadInitated {
               number_of_chunks: request.number_of_chunks,
@@ -105,6 +107,7 @@ impl DownloadsActor {
       DownloadEvent::RequestFileChunk(key, offset) => {
         if let Some(connection) = self.connections.get_mut(&key) {
           if let Some(upload_sender) = &connection.upload_sender {
+            println!("Sending chunk request for key {:?}", key);
             if let Err(err) = upload_sender.send(msg::UploadResponse {
               r#type: Some(msg::upload_response::Type::Request(msg::ChunkRequest { offset })),
             }) {
@@ -119,6 +122,7 @@ impl DownloadsActor {
       }
       DownloadEvent::SendFileChunk(key, chunk) => {
         if let Some(connection) = self.connections.get_mut(&key) {
+          println!("Sending chunk for key {:?}", key);
           if let Err(err) = connection.download_sender.send(msg::DownloadResponse {
             r#type: Some(msg::download_response::Type::Chunk(msg::SharedFileChunk {
               offset: chunk.offset,
@@ -134,6 +138,7 @@ impl DownloadsActor {
       DownloadEvent::DownloadComplete(key) => {
         if let Some(connection) = self.connections.remove(&key) {
           if let Some(upload_sender) = connection.upload_sender {
+            println!("Sending upload complete for key {:?}", key);
             if let Err(err) = upload_sender.send(msg::UploadResponse {
               r#type: Some(msg::upload_response::Type::Complete(msg::UploadComplete {})),
             }) {

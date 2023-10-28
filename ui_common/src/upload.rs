@@ -121,12 +121,13 @@ pub async fn listen_for_uploads(
         println!("Received request to upload {:?}", request);
         let client_clone = client.clone();
         let options_clone = options.clone();
-        let _ = tokio::task::spawn(async move {
+        let task = tokio::task::spawn(async move {
           println!("within spawn: Uploading file");
           if let Err(err) = upload_file(client_clone, request, options_clone).await {
             eprintln!("Error uploading file: {}", err);
           }
         });
+        task.await?;
       }
       _ => {}
     }

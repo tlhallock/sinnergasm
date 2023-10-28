@@ -63,7 +63,7 @@ async fn subscribe_to_workspace(
         sender.send(events::AppEvent::untargetted())?;
       }
       msg::workspace_event::EventType::DownloadRequest(upload_request) => {
-        println!("Received request to upload {:?}", upload_request);
+        println!("Received request to upload, sending app event {:?}", upload_request);
         sender.send(events::AppEvent::SubscriptionEvent(
           events::SubscriptionEvent::BeginUpload(upload_request),
         ))?;

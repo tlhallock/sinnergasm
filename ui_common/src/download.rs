@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use sinnergasm::grpc_client::GrpcClient;
@@ -7,6 +8,77 @@ use std::io;
 use std::io::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+
+
+#[derive(Debug)]
+enum ProgressCheck {
+  Complete,
+  Requested(usize),
+}
+
+
+#[derive(Debug)]
+struct DownloadChunkPool {
+  to_download: Vec<usize>,
+  downloading: Vec<(usize, std::time::SystemTime)>,
+  downloaded: Vec<usize>,
+
+  parallel_downloads: usize,
+  sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>,
+}
+
+impl DownloadChunkPool {
+  fn new(number_of_chunks: usize, parallel_downloads: usize, sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>) -> Self {
+    Self {
+      to_download: (0..number_of_chunks).collect(),
+      downloading: vec![],
+      downloaded: vec![],
+      parallel_downloads,
+      sender,
+    }
+  }
+
+  fn set_completed(&mut self, offset: Option<usize>) -> Result<ProgressCheck, anyhow::Error> {
+    if let Some(offset) = offset {
+      if let Some(index) = self.downloading.iter().position(|&(x, _)| x == offset) {
+          self.downloading.remove(index);
+          self.downloaded.push(offset);
+      } else {
+        panic!("Chunk {} was not being downloaded", offset);
+      }
+    }
+
+    let now = std::time::SystemTime::now();
+    let mut next_downloads = vec![];
+    while self.downloading.len() < self.parallel_downloads && !self.to_download.is_empty() {
+        let next = self.to_download.remove(0);
+        self.downloading.push((next, now));
+        next_downloads.push(next);
+    }
+
+    let num_requesting = next_downloads.len();
+    for next_offset in next_downloads {
+      self.sender.send(msg::DownloadRequest {
+        r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest {
+          offset: next_offset as u64,
+        })),
+      })?;
+    }
+
+    if self.to_download.is_empty() && self.downloading.is_empty() {
+      self.sender.send(msg::DownloadRequest {
+        r#type: Some(msg::download_request::Type::Complete(msg::DownloadComplete {
+        })),
+        })?;
+        Ok(ProgressCheck::Complete)
+    } else {
+        Ok(ProgressCheck::Requested(num_requesting))
+    }
+}
+}
+
+
+
 
 pub async fn spawn_download_task(
   client: GrpcClient,
@@ -72,9 +144,18 @@ async fn download_file(
   }) = stream.message().await?
   {
     println!("Received download initiated message");
-    let mut chunks_received = vec![false; number_of_chunks as usize];
-    // let mut chunks_requested =
+    let mut downloads = DownloadChunkPool::new(number_of_chunks as usize, 1, sender);
+    match downloads.set_completed(None) {
+      Ok(ProgressCheck::Complete) => {
+        eprintln!("Download complete after initial request!!");
+      }
+      Ok(ProgressCheck::Requested(num_requested)) => {
+        println!("Requested initial chunks: {:?}", num_requested);
+      },
+      Err(err) => eprintln!("Unable to send download initial requests: {:?}", err),
+    }
 
+    'outer:
     while let Some(msg::DownloadResponse {
       r#type: Some(event_type),
     }) = stream.message().await?
@@ -86,25 +167,21 @@ async fn download_file(
         }
         msg::download_response::Type::Chunk(msg::SharedFileChunk { offset, data }) => {
           println!("Received chunk {}", offset);
-          chunks_received[offset as usize] = true;
 
           file.seek(io::SeekFrom::Start(offset as u64 * buffer_size as u64))?;
           file.write_all(&data)?;
 
-          let next_offset = offset + 1;
-          if next_offset >= number_of_chunks {
-            break;
+          match downloads.set_completed(None) {
+            Ok(ProgressCheck::Complete) => {
+              println!("Download complete");
+              break 'outer;
+            }
+            Ok(ProgressCheck::Requested(num_requested)) => {
+              println!("Requesting chunks: {:?}", num_requested);
+            },
+            Err(err) => eprintln!("Unable to send download requests: {:?}", err),
           }
-
-          sender.send(msg::DownloadRequest {
-            r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest {
-              offset: next_offset,
-            })),
-          })?;
         }
-      }
-      if chunks_received.iter().all(|x| *x) {
-        break;
       }
     }
 
