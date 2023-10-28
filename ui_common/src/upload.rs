@@ -25,6 +25,11 @@ pub(crate) fn compute_hash(file_path: &std::path::Path) -> Result<String, anyhow
   Ok(format!("{:x}", hash_bytes))
 }
 
+fn div_ceil(a: u64, b: u64) -> u64 {
+  // Assuming a + b doesn't overflow
+  (a + b - 1) / b
+}
+
 async fn upload_file(
   mut client: GrpcClient,
   request: msg::UploadRequested,
@@ -44,7 +49,7 @@ async fn upload_file(
   println!("Ignoring file permissions: {:?}", permissions);
 
   let buffer_size = request.buffer_size.unwrap_or(4096);
-  let number_of_chunks = metadata.len().div_ceil(buffer_size);
+  let number_of_chunks = div_ceil(metadata.len(), buffer_size);
   println!(
     "File size: {}, buffer size: {}, number of chunks: {}",
     metadata.len(),

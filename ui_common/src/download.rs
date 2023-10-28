@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+
 use std::sync::Arc;
 
 use sinnergasm::grpc_client::GrpcClient;
@@ -137,7 +137,7 @@ async fn download_file(
         number_of_chunks,
         checksum: expected_checksum,
         buffer_size,
-        permissions,
+        permissions: _,
       })),
   }) = stream.message().await?
   {
