@@ -53,6 +53,11 @@ async fn send_target_requests(
       events::AppEvent::RequestDwonload(device, shared_file) => {
         println!("handler: Sending download request for {:?}", shared_file);
         let _task = spawn_download_task(client.clone(), device, shared_file, options.clone()).await;
+        match _task.await {
+          Ok(Ok(())) => println!("Task completed successfully"),
+          Ok(Err(_)) => println!("Task returned an error"),
+          Err(_) => println!("Task panicked"),
+      }
       }
       events::AppEvent::ControlEvent(_)
       | events::AppEvent::SubscriptionEvent(_)
