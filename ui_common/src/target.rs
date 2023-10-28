@@ -1,4 +1,3 @@
-use druid::piet::cairo::glib::shared;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
