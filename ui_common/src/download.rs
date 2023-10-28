@@ -34,6 +34,7 @@ async fn download_file(
   let mut stream = client.download_file(receiver_stream).await?.into_inner();
   let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
 
+  println!("Spawned thread: sending download request");
   sender.send(msg::DownloadRequest {
     r#type: Some(msg::download_request::Type::Initiate(msg::InitiateDownload {
       workspace: options.workspace.clone(),

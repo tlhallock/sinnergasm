@@ -51,6 +51,7 @@ async fn send_target_requests(
         return Ok(());
       }
       events::AppEvent::RequestDwonload(device, shared_file) => {
+        println!("handler: Sending download request for {:?}", shared_file);
         let _task = spawn_download_task(client.clone(), device, shared_file, options.clone()).await;
       }
       events::AppEvent::ControlEvent(_)

@@ -51,6 +51,7 @@ fn ui_builder(other_devices: Vec<msg::Device>, sender: Sender<events::AppEvent>)
         shared_file.relative_path.clone()
       );
       let button = Button::new(label).on_click(move |_ctx, _data, _env| {
+        println!("Sending app event to download {:?}", shared_file);
         button_sender
           .send(events::AppEvent::RequestDwonload(
             device_name.clone(),
