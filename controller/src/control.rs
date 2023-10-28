@@ -12,10 +12,10 @@ use crate::handler::send_control_events;
 use crate::listener::listen_to_system;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
+use sinnergasm::protos as msg;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use sinnergasm::protos as msg;
 
 use sinnergasm::grpc_client::create_client;
 use std::sync::Arc;
@@ -25,7 +25,6 @@ use ui_common::device_display::display_devices;
 use ui_common::events;
 use ui_common::subscribe::launch_subscription_task;
 use ui_common::target::launch_send_targets_task;
-
 
 // finish creating the launch methods
 // Rename them to spawn methods
@@ -45,7 +44,10 @@ async fn flush_mouse_movements(
   }
 }
 
-fn launch_control_task(client: GrpcClient, control_recv: tokio_mpsc::UnboundedReceiver<msg::ControlRequest>) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+fn launch_control_task(
+  client: GrpcClient,
+  control_recv: tokio_mpsc::UnboundedReceiver<msg::ControlRequest>,
+) -> tokio::task::JoinHandle<anyhow::Result<()>> {
   let receiver_stream = UnboundedReceiverStream::new(control_recv);
   let mut client_clone = client.clone();
   let network_task = tokio::task::spawn(async move {
@@ -54,7 +56,6 @@ fn launch_control_task(client: GrpcClient, control_recv: tokio_mpsc::UnboundedRe
   });
   return network_task;
 }
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

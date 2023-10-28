@@ -17,17 +17,13 @@ use crate::listener::listen_to_system;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-
-
 fn die_early() {
   panic!("Dying early");
 }
 
-
 fn print_type_of<T>(_: &T) {
   println!("{}", std::any::type_name::<T>());
 }
-
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::events;
 use sha2::Digest;
 use sha2::Sha256;
 use sinnergasm::grpc_client::GrpcClient;
@@ -8,10 +9,9 @@ use sinnergasm::protos as msg;
 use std::fs;
 use std::io;
 use std::io::prelude::*;
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio::sync::broadcast::Receiver as Receiver;
-use crate::events as events;
 
 pub(crate) fn compute_hash(file_path: &std::path::Path) -> Result<String, anyhow::Error> {
   let mut hasher = Sha256::new();
@@ -89,7 +89,6 @@ async fn upload_file(
 
   anyhow::Ok(())
 }
-
 
 pub async fn listen_for_uploads(
   mut receiver: Receiver<events::AppEvent>,

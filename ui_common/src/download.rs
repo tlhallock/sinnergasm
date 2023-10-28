@@ -8,7 +8,6 @@ use std::io::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-
 pub async fn spawn_download_task(
   client: GrpcClient,
   upload_device: String,
@@ -23,7 +22,6 @@ pub async fn spawn_download_task(
   });
   return task;
 }
-
 
 async fn download_file(
   mut client: GrpcClient,
@@ -103,5 +101,3 @@ async fn download_file(
 
   anyhow::Ok(())
 }
-
-

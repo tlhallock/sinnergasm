@@ -3,12 +3,12 @@ use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 
+use crate::download::spawn_download_task;
 use crate::events;
 use cli_clipboard::ClipboardContext;
 use cli_clipboard::ClipboardProvider;
 use std::sync::Arc;
 use tokio::sync::broadcast::Receiver;
-use crate::download::spawn_download_task;
 
 pub async fn launch_send_targets_task(
   receiver: Receiver<events::AppEvent>,

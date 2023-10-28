@@ -23,11 +23,9 @@ use tonic_health::ServingStatus;
 
 use crate::workspace_server::WorkspaceServer;
 
+use tonic::transport::Identity;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
-use tonic::transport::Identity;
-
-
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -93,8 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone(), download_send.clone());
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
   Server::builder()
-    .tls_config(tonic::transport::ServerTlsConfig::new()
-      .identity(Identity::from_pem(&cert, &key)))?
+    .tls_config(tonic::transport::ServerTlsConfig::new().identity(Identity::from_pem(&cert, &key)))?
     // .add_service(health_service)
     .add_service(service)
     .serve(addr)

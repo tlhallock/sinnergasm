@@ -12,7 +12,6 @@ pub enum SubscriptionEvent {
   Untargetted,
 }
 
-
 pub async fn launch_subscription_task(
   options: Arc<Options>,
   client: GrpcClient,
@@ -25,7 +24,6 @@ pub async fn launch_subscription_task(
   });
   return subscribe_task;
 }
-
 
 async fn subscribe_to_workspace(
   options: Arc<Options>,

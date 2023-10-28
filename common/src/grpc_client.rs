@@ -1,19 +1,19 @@
 extern crate rdev;
 
-use tonic::transport::Channel;
-use tonic::Status;
-use tonic::transport::ClientTlsConfig;
 use tonic::transport::Certificate;
+use tonic::transport::Channel;
+use tonic::transport::ClientTlsConfig;
+use tonic::Status;
 
 use tokio::time::timeout;
 use tokio::time::Duration;
 use tonic::metadata::Ascii;
 use tonic::service::Interceptor;
 
+use crate::options::Options;
 use crate::protos::virtual_workspaces_client::VirtualWorkspacesClient;
 use anyhow;
 use tonic::metadata::MetadataValue;
-use crate::options::Options;
 
 pub type GrpcClient = VirtualWorkspacesClient<tonic::codegen::InterceptedService<Channel, AuthorizationInterceptor>>;
 
@@ -42,9 +42,11 @@ impl Interceptor for AuthorizationInterceptor {
 pub async fn create_client(options: &Options) -> Result<GrpcClient, anyhow::Error> {
   let cert = std::fs::read("resources/ca.crt")?;
   let channel = Channel::from_shared(options.base_url.clone())?
-    .tls_config(ClientTlsConfig::new()
-      .ca_certificate(Certificate::from_pem(&cert))
-      .domain_name("sinnergy".to_string()))?
+    .tls_config(
+      ClientTlsConfig::new()
+        .ca_certificate(Certificate::from_pem(&cert))
+        .domain_name("sinnergy".to_string()),
+    )?
     .concurrency_limit(options.concurrency_limit);
   let connect_future = channel.connect();
   let channel = timeout(Duration::from_secs(options.timeout), connect_future).await??;
