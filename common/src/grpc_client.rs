@@ -40,7 +40,7 @@ impl Interceptor for AuthorizationInterceptor {
 // }
 
 pub async fn create_client(options: &Options) -> Result<GrpcClient, anyhow::Error> {
-  let cert = std::fs::read("resources/ca.crt")?;
+  let cert = std::fs::read("keys/ca.crt")?;
   let channel = Channel::from_shared(options.base_url.clone())?
     .tls_config(
       ClientTlsConfig::new()

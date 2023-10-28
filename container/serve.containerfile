@@ -1,8 +1,8 @@
 FROM gcr.io/distroless/static-debian12
 COPY ./target/x86_64-unknown-linux-musl/release/serve /app/serve
-COPY ./resources/token.txt /app/resources/token.txt
+COPY ./keys/token.txt /app/keys/token.txt
 # TODO: Use a secret manager instead of this
-COPY ./resources/server.key /app/resources/server.key
-COPY ./resources/ca.crt /app/resources/ca.crt
+COPY ./keys/server.key /app/keys/server.key
+COPY ./keys/server.pem /app/keys/server.pem
 WORKDIR /app
 CMD ["./serve"]

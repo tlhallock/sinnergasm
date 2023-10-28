@@ -85,8 +85,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   //   .await;
   // health_reporter.set_serving::<VirtualWorkspacesServer<WorkspaceServer>>().await;
 
-  let cert = std::fs::read("resources/server.pem").expect("Missing server.pem");
-  let key = std::fs::read("resources/server.key").expect("Missing server.key");
+  let cert = std::fs::read("keys/server.pem").expect("Missing server.pem");
+  let key = std::fs::read("keys/server.key").expect("Missing server.key");
   let addr = format!("0.0.0.0:{}", PORT).parse()?;
   let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone(), download_send.clone());
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);

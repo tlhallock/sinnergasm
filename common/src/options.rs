@@ -11,7 +11,7 @@ pub const HOST: &str = "10.0.0.129";
 pub const PORT: i64 = 50051;
 
 pub fn read_token() -> String {
-  std::fs::read_to_string("./resources/token.txt")
+  std::fs::read_to_string("./keys/token.txt")
     .expect("Unable to read token.")
     .trim()
     .into()
