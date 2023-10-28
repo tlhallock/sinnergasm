@@ -36,11 +36,6 @@ async fn download_file(
   let (sender, receiver) = tokio_mpsc::unbounded_channel();
   println!("Spawned thread: creating receiver stream");
   let receiver_stream = UnboundedReceiverStream::new(receiver);
-  println!("Spawned thread: creating download stream");
-  let mut stream = client.download_file(receiver_stream).await?.into_inner();
-  println!("Spawned thread: joining paths");
-  let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
-
   println!("Spawned thread: sending download request");
   sender.send(msg::DownloadRequest {
     r#type: Some(msg::download_request::Type::Initiate(msg::InitiateDownload {
@@ -51,6 +46,10 @@ async fn download_file(
       buffer_size: None,
     })),
   })?;
+  println!("Spawned thread: creating download stream");
+  let mut stream = client.download_file(receiver_stream).await?.into_inner();
+  println!("Spawned thread: joining paths");
+  let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
 
   let mut file = std::fs::File::create(&target_location)?;
 
