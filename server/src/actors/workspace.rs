@@ -78,7 +78,7 @@ impl WorkspaceActor {
             if let Err(err) = uploader.send(msg::WorkspaceEvent {
               event_type: Some(msg::workspace_event::EventType::DownloadRequest(msg::UploadRequested {
                 download_device: initiate_request.download_device.clone(),
-                file_path: initiate_request.file_path.clone(),
+                relative_path: initiate_request.relative_path.clone(),
                 buffer_size: initiate_request
                   .buffer_size
                   .map(|x| std::cmp::max(x, MAXIMUM_BUFFER_SIZE)),

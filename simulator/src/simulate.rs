@@ -3,13 +3,13 @@ pub mod events;
 pub mod handler;
 pub mod listener;
 
-use ui_common::subscribe::subscribe_to_workspace;
+use ui_common::subscribe::launch_subscription_task;
 
 use anyhow;
 use sinnergasm::grpc_client::create_client;
 use sinnergasm::options::Options;
 use ui_common::device_display::display_devices;
-use ui_common::target::send_target_requests;
+use ui_common::target::launch_send_targets_task;
 
 use crate::handler::simulate_receiver;
 use crate::listener::listen_to_client;
@@ -17,20 +17,17 @@ use crate::listener::listen_to_system;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-// let cert = std::fs::read_to_string("ca.pem")?;
-// .tls_config(ClientTlsConfig::new()
-//     .ca_certificate(Certificate::from_pem(&cert))
-//     .domain_name("example.com".to_string()))?
-// .timeout(Duration::from_secs(5))
-// .rate_limit(5, Duration::from_secs(1))
+
 
 fn die_early() {
   panic!("Dying early");
 }
 
+
 fn print_type_of<T>(_: &T) {
   println!("{}", std::any::type_name::<T>());
 }
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,11 +40,7 @@ async fn main() -> anyhow::Result<()> {
   let sender_clone = sender.clone();
   let _ = std::thread::spawn(move || listen_to_system(sender_clone));
 
-  let sender_clone = sender.clone();
-  let client_clone = client.clone();
-  let options_clone = options.clone();
-  let subscribe_task =
-    tokio::task::spawn(async move { subscribe_to_workspace(options_clone, client_clone, sender_clone, false).await });
+  let subscribe_task = launch_subscription_task(options.clone(), client.clone(), sender.clone(), false).await;
 
   let sender_clone = sender.clone();
   let client_clone = client.clone();
@@ -57,13 +50,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
   });
 
-  let client_clone = client.clone();
-  let options_clone = options.clone();
-  let receiver = sender.subscribe();
-  let target_task = tokio::task::spawn(async move {
-    send_target_requests(receiver, client_clone, options_clone).await?;
-    anyhow::Ok(())
-  });
+  let target_task = launch_send_targets_task(sender.subscribe(), client.clone(), options.clone()).await;
 
   let receiver = sender.subscribe();
   let simulate_task = tokio::task::spawn(async move {

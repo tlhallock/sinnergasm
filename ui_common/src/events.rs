@@ -27,6 +27,7 @@ pub enum AppEvent {
   ControlEvent(ControllerEvent),
   SimulationEvent(SimulationEvent),
   SubscriptionEvent(SubscriptionEvent),
+  RequestDwonload(/*Device: */String, msg::SharedFile),
 }
 
 impl AppEvent {

@@ -11,7 +11,7 @@ pub const HOST: &str = "10.0.0.129";
 pub const PORT: i64 = 50051;
 
 pub fn read_token() -> String {
-  std::fs::read_to_string("./token.txt")
+  std::fs::read_to_string("./resources/token.txt")
     .expect("Unable to read token.")
     .trim()
     .into()
@@ -27,6 +27,7 @@ pub struct Options {
   pub concurrency_limit: usize,
   pub controller_mouse_frequency: Duration,
   pub capacity: usize,
+  pub shared_folder: String,
 }
 
 impl Options {
@@ -40,6 +41,7 @@ impl Options {
       concurrency_limit: 256,
       controller_mouse_frequency: Duration::from_millis(20),
       capacity: 256,
+      shared_folder: "/work/ProjectsForFun/rust-synergy/seperate/upload_directory".into(),
     }
   }
 }

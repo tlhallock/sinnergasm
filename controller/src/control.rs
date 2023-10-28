@@ -10,10 +10,12 @@ pub mod options;
 use crate::handler::configure_control_stream;
 use crate::handler::send_control_events;
 use crate::listener::listen_to_system;
+use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use sinnergasm::protos as msg;
 
 use sinnergasm::grpc_client::create_client;
 use std::sync::Arc;
@@ -21,8 +23,12 @@ use tokio::sync::broadcast;
 use tokio::sync::broadcast::Sender;
 use ui_common::device_display::display_devices;
 use ui_common::events;
-use ui_common::subscribe::subscribe_to_workspace;
-use ui_common::target::send_target_requests;
+use ui_common::subscribe::launch_subscription_task;
+use ui_common::target::launch_send_targets_task;
+
+
+// finish creating the launch methods
+// Rename them to spawn methods
 
 fn die_early() {
   panic!("Dying early");
@@ -39,6 +45,17 @@ async fn flush_mouse_movements(
   }
 }
 
+fn launch_control_task(client: GrpcClient, control_recv: tokio_mpsc::UnboundedReceiver<msg::ControlRequest>) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+  let receiver_stream = UnboundedReceiverStream::new(control_recv);
+  let mut client_clone = client.clone();
+  let network_task = tokio::task::spawn(async move {
+    client_clone.control_workspace(receiver_stream).await?;
+    anyhow::Ok(())
+  });
+  return network_task;
+}
+
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   let options = Arc::new(Options::new("desktop".into()));
@@ -47,29 +64,11 @@ async fn main() -> anyhow::Result<()> {
   let (sender, _) = broadcast::channel::<events::AppEvent>(options.capacity);
 
   let (control_send, control_recv) = tokio_mpsc::unbounded_channel();
-  let receiver_stream = UnboundedReceiverStream::new(control_recv);
-  let mut client_clone = client.clone();
-  let network_task = tokio::task::spawn(async move {
-    client_clone.control_workspace(receiver_stream).await?;
-    anyhow::Ok(())
-  });
+  let network_task = launch_control_task(client.clone(), control_recv);
   configure_control_stream(&control_send, &options)?;
 
-  let sender_clone = sender.clone();
-  let client_clone = client.clone();
-  let options_clone = options.clone();
-  let subscribe_task = tokio::task::spawn(async move {
-    subscribe_to_workspace(options_clone, client_clone, sender_clone, true).await?;
-    anyhow::Ok(())
-  });
-
-  let options_clone = options.clone();
-  let client_clone = client.clone();
-  let receiver = sender.subscribe();
-  let target_task = tokio::task::spawn(async move {
-    send_target_requests(receiver, client_clone, options_clone).await?;
-    anyhow::Ok(())
-  });
+  let subscribe_task = launch_subscription_task(options.clone(), client.clone(), sender.clone(), true).await;
+  let target_task = launch_send_targets_task(sender.subscribe(), client.clone(), options.clone()).await;
 
   let sender_clone = sender.clone();
   let _ = std::thread::spawn(move || {

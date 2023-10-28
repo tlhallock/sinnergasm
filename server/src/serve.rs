@@ -10,7 +10,6 @@ use crate::actors::simulate::SimulationEvent;
 use crate::actors::workspace::SubscriptionEvent;
 use crate::actors::workspace::WorkspaceActor;
 
-use actors::download_manager;
 use actors::download_manager::DownloadEvent;
 use actors::download_manager::DownloadsActor;
 use tonic::transport::Server;
@@ -26,9 +25,9 @@ use crate::workspace_server::WorkspaceServer;
 
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
+use tonic::transport::Identity;
 
-// let cert = std::fs::read_to_string("server.pem")?;
-// let key = std::fs::read_to_string("server.key")?;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -87,12 +86,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   //   .set_serving::<VirtualWorkspacesServer<WorkspaceServer>>()
   //   .await;
   // health_reporter.set_serving::<VirtualWorkspacesServer<WorkspaceServer>>().await;
+
+  let cert = std::fs::read("resources/server.pem").expect("Missing server.pem");
+  let key = std::fs::read("resources/server.key").expect("Missing server.key");
   let addr = format!("0.0.0.0:{}", PORT).parse()?;
   let server = WorkspaceServer::new(workspace_send.clone(), sim_send.clone(), download_send.clone());
   let service = VirtualWorkspacesServer::with_interceptor(server, check_auth);
   Server::builder()
-    // .tls_config(ServerTlsConfig::new()
-    //   .identity(Identity::from_pem(&cert, &key)))?
+    .tls_config(tonic::transport::ServerTlsConfig::new()
+      .identity(Identity::from_pem(&cert, &key)))?
     // .add_service(health_service)
     .add_service(service)
     .serve(addr)

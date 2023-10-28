@@ -1,7 +1,7 @@
 
 token:
-	echo -n $$(tr -dc A-Za-z0-9 </dev/urandom | head -c 50 ; echo '') > ./container/token.txt
-	cp ./container/token.txt .
+	echo -n $$(tr -dc A-Za-z0-9 </dev/urandom | head -c 50 ; echo '') > ./container/resources/token.txt
+	cp ./container/resources/token.txt ./resources/
 	@# echo $(tr -dc A-Za-z0-9 </dev/urandom | head -c 50 ; echo '') > ./container/token.txt
 
 build:

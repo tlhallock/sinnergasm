@@ -1,33 +1,47 @@
 use std::sync::Arc;
 
-use sha2::Digest;
-use sha2::Sha256;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
-use std::fs;
 use std::io;
 use std::io::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
-pub async fn download_file(
+
+pub async fn spawn_download_task(
+  client: GrpcClient,
+  upload_device: String,
+  shared_file: msg::SharedFile,
+  options: Arc<Options>,
+) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+  let task = tokio::spawn(async move {
+    if let Err(err) = download_file(client, upload_device, shared_file, options).await {
+      eprintln!("Error downloading file: {}", err);
+    }
+    Ok(())
+  });
+  return task;
+}
+
+
+async fn download_file(
   mut client: GrpcClient,
-  upload_device: &String,
-  shared_file: &msg::SharedFile,
+  upload_device: String,
+  shared_file: msg::SharedFile,
   options: Arc<Options>,
 ) -> Result<(), anyhow::Error> {
   let (sender, receiver) = tokio_mpsc::unbounded_channel();
   let receiver_stream = UnboundedReceiverStream::new(receiver);
   let mut stream = client.download_file(receiver_stream).await?.into_inner();
-  let target_location = shared_file.file_path.clone();
+  let target_location = std::path::Path::new(&options.shared_folder).join(&shared_file.relative_path);
 
   sender.send(msg::DownloadRequest {
     r#type: Some(msg::download_request::Type::Initiate(msg::InitiateDownload {
       workspace: options.workspace.clone(),
       download_device: options.device.clone(),
       upload_device: upload_device.clone(),
-      file_path: shared_file.file_path.clone(),
+      relative_path: shared_file.relative_path.clone(),
       buffer_size: None,
     })),
   })?;
@@ -89,3 +103,5 @@ pub async fn download_file(
 
   anyhow::Ok(())
 }
+
+

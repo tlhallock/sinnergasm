@@ -10,8 +10,10 @@ use std::io;
 use std::io::prelude::*;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
+use tokio::sync::broadcast::Receiver as Receiver;
+use crate::events as events;
 
-pub(crate) fn compute_hash(file_path: &String) -> Result<String, anyhow::Error> {
+pub(crate) fn compute_hash(file_path: &std::path::Path) -> Result<String, anyhow::Error> {
   let mut hasher = Sha256::new();
   let mut file = fs::File::open(file_path)?;
 
@@ -23,14 +25,16 @@ pub(crate) fn compute_hash(file_path: &String) -> Result<String, anyhow::Error> 
   Ok(format!("{:x}", hash_bytes))
 }
 
-pub async fn upload_file(
+async fn upload_file(
   mut client: GrpcClient,
   request: msg::UploadRequested,
   options: Arc<Options>,
 ) -> Result<(), anyhow::Error> {
-  let checksum = compute_hash(&request.file_path)?;
+  let file_path = std::path::Path::new(&options.shared_folder).join(&request.relative_path);
 
-  let mut file = std::fs::File::open(&request.file_path)?;
+  let checksum = compute_hash(&file_path)?;
+
+  let mut file = std::fs::File::open(&file_path)?;
   let metadata = file.metadata()?;
   let permissions = format!("{:?}", metadata.permissions());
 
@@ -46,7 +50,7 @@ pub async fn upload_file(
       workspace: options.workspace.clone(),
       download_device: request.download_device.clone(),
       upload_device: options.device.clone(),
-      file_path: request.file_path.clone(),
+      relative_path: request.relative_path.clone(),
       buffer_size,
       checksum,
       number_of_chunks,
@@ -84,4 +88,30 @@ pub async fn upload_file(
   }
 
   anyhow::Ok(())
+}
+
+
+pub async fn listen_for_uploads(
+  mut receiver: Receiver<events::AppEvent>,
+  client: GrpcClient,
+  options: Arc<Options>,
+) -> Result<(), anyhow::Error> {
+  loop {
+    match receiver.recv().await? {
+      events::AppEvent::Quit => {
+        println!("Received quit event");
+        return Ok(());
+      }
+      events::AppEvent::SubscriptionEvent(events::SubscriptionEvent::BeginUpload(request)) => {
+        let client_clone = client.clone();
+        let options_clone = options.clone();
+        let _ = tokio::task::spawn(async move {
+          if let Err(err) = upload_file(client_clone, request, options_clone).await {
+            eprintln!("Error uploading file: {}", err);
+          }
+        });
+      }
+      _ => {}
+    }
+  }
 }

@@ -168,9 +168,6 @@ pub async fn send_control_events(
           println!("No mouse position found, ignoring listen event");
         }
       }
-      events::AppEvent::SubscriptionEvent(events::SubscriptionEvent::BeginUpload(upload)) => {
-        todo!();
-      }
       _ => {}
     }
   }

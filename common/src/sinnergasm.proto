@@ -79,12 +79,11 @@ message Monitor {
 message Device {
   string name = 1;
   bool controller = 2;
-  string download_directory = 3;
-  repeated SharedFile files = 4;
+  repeated SharedFile files = 3;
 }
 
 message SharedFile {
-  string file_path = 1;
+  string relative_path = 1;
   optional uint64 size = 2;
 }
 
@@ -233,7 +232,7 @@ message DeviceDisconnected {
 
 message UploadRequested {
   string download_device = 1;
-  string file_path = 2;
+  string relative_path = 2;
   optional uint64 buffer_size = 3;
 }
 
@@ -444,7 +443,7 @@ message InitiateDownload {
   string workspace = 1;
   string download_device = 2;
   string upload_device = 3;
-  string file_path = 4;
+  string relative_path = 4;
   optional uint64 buffer_size = 5;
 }
 
@@ -483,7 +482,7 @@ message InitiateUpload {
   string workspace = 1;
   string download_device = 2;
   string upload_device = 3;
-  string file_path = 4;
+  string relative_path = 4;
   uint64 buffer_size = 5;
   string checksum = 6;
   uint64 number_of_chunks = 7;

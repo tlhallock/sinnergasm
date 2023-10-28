@@ -1,3 +1,4 @@
+use druid::piet::cairo::glib::shared;
 use sinnergasm::grpc_client::GrpcClient;
 use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
@@ -7,8 +8,21 @@ use cli_clipboard::ClipboardContext;
 use cli_clipboard::ClipboardProvider;
 use std::sync::Arc;
 use tokio::sync::broadcast::Receiver;
+use crate::download::spawn_download_task;
 
-pub async fn send_target_requests(
+pub async fn launch_send_targets_task(
+  receiver: Receiver<events::AppEvent>,
+  client: GrpcClient,
+  options: Arc<Options>,
+) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+  let target_task = tokio::task::spawn(async move {
+    send_target_requests(receiver, client, options).await?;
+    anyhow::Ok(())
+  });
+  return target_task;
+}
+
+async fn send_target_requests(
   mut receiver: Receiver<events::AppEvent>,
   mut client: GrpcClient,
   options: Arc<Options>,
@@ -35,6 +49,9 @@ pub async fn send_target_requests(
       }
       events::AppEvent::Quit => {
         return Ok(());
+      }
+      events::AppEvent::RequestDwonload(device, shared_file) => {
+        let _task = spawn_download_task(client.clone(), device, shared_file, options.clone()).await;
       }
       events::AppEvent::ControlEvent(_)
       | events::AppEvent::SubscriptionEvent(_)

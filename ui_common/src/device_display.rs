@@ -13,6 +13,7 @@ use sinnergasm::options::Options;
 use sinnergasm::protos as msg;
 use tokio::sync::broadcast::Sender;
 
+
 #[derive(Clone, Data)]
 struct DisplayState {
   listening: bool,
@@ -33,12 +34,29 @@ fn ui_builder(other_devices: Vec<msg::Device>, sender: Sender<events::AppEvent>)
   for device in other_devices {
     let label = format!("Go to device {}", device.name.clone());
     let button_sender = sender.clone();
+
+    let device_name = device.name.clone();
     let button = Button::new(label).on_click(move |_ctx, _data, _env| {
       button_sender
-        .send(events::AppEvent::target(device.name.clone()))
+        .send(events::AppEvent::target(device_name.clone()))
         .expect("Unable to go to queue workspace request");
     });
     column.add_child(button);
+
+    for shared_file in device.files {
+      let button_sender = sender.clone();
+      let device_name = device.name.clone();
+      let label = format!("Download shared file {}:{}", device_name, shared_file.relative_path.clone());
+      let button = Button::new(label).on_click(move |_ctx, _data, _env| {
+        button_sender.send(events::AppEvent::RequestDwonload(
+          device_name.clone(),
+          shared_file.clone(),
+        )).expect(
+          "Unable to go to queue download request"
+        );
+      });
+      column.add_child(button);
+    }
   }
   Flex::column().with_child(label).with_child(column)
 }

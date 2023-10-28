@@ -1,0 +1,9 @@
+
+[ v3_end ]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = sinnergy
+DNS.2 = localhost

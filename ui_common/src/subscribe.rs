@@ -12,7 +12,22 @@ pub enum SubscriptionEvent {
   Untargetted,
 }
 
-pub async fn subscribe_to_workspace(
+
+pub async fn launch_subscription_task(
+  options: Arc<Options>,
+  client: GrpcClient,
+  sender: Sender<events::AppEvent>,
+  reuest_target: bool,
+) -> tokio::task::JoinHandle<anyhow::Result<()>> {
+  let subscribe_task = tokio::task::spawn(async move {
+    subscribe_to_workspace(options, client, sender, reuest_target).await?;
+    anyhow::Ok(())
+  });
+  return subscribe_task;
+}
+
+
+async fn subscribe_to_workspace(
   options: Arc<Options>,
   mut client: GrpcClient,
   sender: Sender<events::AppEvent>,

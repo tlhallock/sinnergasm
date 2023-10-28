@@ -10,7 +10,7 @@ pub(crate) struct DownloadKey {
   pub(crate) workspace: ids::WorkspaceName,
   pub(crate) download_device: ids::DeviceName,
   pub(crate) upload_device: ids::DeviceName,
-  pub(crate) file_path: String,
+  pub(crate) relative_path: String,
 }
 
 impl DownloadKey {
@@ -19,7 +19,7 @@ impl DownloadKey {
       workspace: initiate.workspace.clone(),
       download_device: initiate.download_device.clone(),
       upload_device: initiate.upload_device.clone(),
-      file_path: initiate.file_path.clone(),
+      relative_path: initiate.relative_path.clone(),
     }
   }
   pub(crate) fn new2(initiate: &msg::InitiateDownload) -> Self {
@@ -27,7 +27,7 @@ impl DownloadKey {
       workspace: initiate.workspace.clone(),
       download_device: initiate.download_device.clone(),
       upload_device: initiate.upload_device.clone(),
-      file_path: initiate.file_path.clone(),
+      relative_path: initiate.relative_path.clone(),
     }
   }
 }
