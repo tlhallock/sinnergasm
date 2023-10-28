@@ -407,7 +407,6 @@ impl VirtualWorkspaces for WorkspaceServer {
       let download_sender = self.download_sender.clone();
       tokio::task::spawn(async move {
         while let Some(req) = stream.next().await {
-          println!("Re download request {:?}", req);
           if let Ok(msg::UploadRequest {
             r#type: Some(upload_request),
           }) = req
@@ -416,9 +415,10 @@ impl VirtualWorkspaces for WorkspaceServer {
               msg::upload_request::Type::Initiate(_) => {
                 eprintln!("Initiate message should only be sent once");
               }
-              msg::upload_request::Type::Chunk(chunk_request) => {
+              msg::upload_request::Type::Chunk(chunk) => {
+                println!("Received chunk {:?}", chunk.offset);
                 if let Err(err) =
-                  download_sender.send(DownloadEvent::SendFileChunk(download_key.clone(), chunk_request))
+                  download_sender.send(DownloadEvent::SendFileChunk(download_key.clone(), chunk))
                 {
                   println!("Failed to send upload chunk request to download manager: {:?}", err);
                 }

@@ -17,9 +17,9 @@ enum ProgressCheck {
 
 #[derive(Debug)]
 struct DownloadChunkPool {
-  to_download: Vec<usize>,
-  downloading: Vec<(usize, std::time::SystemTime)>,
-  downloaded: Vec<usize>,
+  to_download: Vec<u64>,
+  downloading: Vec<(u64, std::time::SystemTime)>,
+  downloaded: Vec<u64>,
 
   parallel_downloads: usize,
   sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>,
@@ -27,7 +27,7 @@ struct DownloadChunkPool {
 
 impl DownloadChunkPool {
   fn new(
-    number_of_chunks: usize,
+    number_of_chunks: u64,
     parallel_downloads: usize,
     sender: tokio_mpsc::UnboundedSender<msg::DownloadRequest>,
   ) -> Self {
@@ -40,9 +40,10 @@ impl DownloadChunkPool {
     }
   }
 
-  fn set_completed(&mut self, offset: Option<usize>) -> Result<ProgressCheck, anyhow::Error> {
+  fn set_completed(&mut self, offset: Option<u64>) -> Result<ProgressCheck, anyhow::Error> {
     if let Some(offset) = offset {
       if let Some(index) = self.downloading.iter().position(|&(x, _)| x == offset) {
+        println!("Removing chunk {} from downloading", offset);
         self.downloading.remove(index);
         self.downloaded.push(offset);
       } else {
@@ -58,7 +59,7 @@ impl DownloadChunkPool {
 
       self.sender.send(msg::DownloadRequest {
         r#type: Some(msg::download_request::Type::Request(msg::ChunkRequest {
-          offset: next as u64,
+          offset: next,
         })),
       })?;
       num_requested += 1;
@@ -140,7 +141,7 @@ async fn download_file(
   }) = stream.message().await?
   {
     println!("Received download initiated message");
-    let mut downloads = DownloadChunkPool::new(number_of_chunks as usize, 1, sender);
+    let mut downloads = DownloadChunkPool::new(number_of_chunks, 1, sender);
     println!("initial state: {:?}", downloads);
     match downloads.set_completed(None) {
       Ok(ProgressCheck::Complete) => {
@@ -164,10 +165,10 @@ async fn download_file(
         msg::download_response::Type::Chunk(msg::SharedFileChunk { offset, data }) => {
           println!("Received chunk {}", offset);
 
-          file.seek(io::SeekFrom::Start(offset as u64 * buffer_size as u64))?;
+          file.seek(io::SeekFrom::Start(offset * buffer_size))?;
           file.write_all(&data)?;
 
-          match downloads.set_completed(None) {
+          match downloads.set_completed(Some(offset)) {
             Ok(ProgressCheck::Complete) => {
               println!("Download complete");
               break 'outer;
