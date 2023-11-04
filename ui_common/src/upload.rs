@@ -26,6 +26,7 @@ pub(crate) fn compute_hash(file_path: &std::path::Path) -> Result<String, anyhow
   if bytes_written == 0 {
     eprintln!("hashed 0 bytes");
   }
+  println!("Bytes written to hasher {}.", bytes_written);
   let hash_bytes = hasher.finalize();
   Ok(format!("{:x}", hash_bytes))
 }
