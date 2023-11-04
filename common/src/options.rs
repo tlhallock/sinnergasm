@@ -6,8 +6,8 @@
 
 use std::time::Duration;
 
-// pub const HOST: &str = "sinnergy-nlb-0897600cc6827ac7.elb.us-west-1.amazonaws.com";
-pub const HOST: &str = "10.0.0.129";
+pub const HOST: &str = "sinnergy-nlb-107b6dacc13a52b2.elb.us-west-1.amazonaws.com";
+// pub const HOST: &str = "10.0.0.129";
 
 pub const PORT: i64 = 50051;
 
