@@ -101,7 +101,7 @@ async fn upload_file(
           sender.send(msg::UploadRequest {
             r#type: Some(msg::upload_request::Type::Chunk(msg::SharedFileChunk {
               offset,
-              data: buf.into(),
+              data: buf[..size].into(),
             })),
           })?;
         } else {
