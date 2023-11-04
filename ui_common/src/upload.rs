@@ -13,6 +13,11 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::mpsc as tokio_mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+
+// const DEFAULT_BUFFER_SIZE: usize = 4096;
+const DEFAULT_BUFFER_SIZE: u64 = 4;
+
+
 pub(crate) fn compute_hash(file_path: &std::path::Path) -> Result<String, anyhow::Error> {
   let mut hasher = Sha256::new();
   let mut file = fs::File::open(file_path)?;
@@ -48,7 +53,7 @@ async fn upload_file(
   let permissions = metadata.permissions();
   println!("Ignoring file permissions: {:?}", permissions);
 
-  let buffer_size = request.buffer_size.unwrap_or(4096);
+  let buffer_size = request.buffer_size.unwrap_or(DEFAULT_BUFFER_SIZE);
   let number_of_chunks = div_ceil(metadata.len(), buffer_size);
   println!(
     "File size: {}, buffer size: {}, number of chunks: {}",
